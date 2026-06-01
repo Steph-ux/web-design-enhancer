@@ -1,72 +1,72 @@
 # Web Design Enhancer v2.3
 
-**Éradiquez l'improvisation visuelle de l'IA et livrez des interfaces premium, épurées et professionnelles.**
+**Eradicate AI visual improvisation and deliver premium, clean, and professional interfaces.**
 
-## Philosophie : Anti-"Odeur d'IA"
+## Philosophy: Anti-"AI Slop"
 
-Ce skill transforme n'importe quel site générique en une expérience visuelle haut de gamme. Il impose une rigueur absolue pour éviter les tics de conception des IA (emojis superflus, espacements aléatoires, composants génériques).
+This skill transforms any generic website into a high-end visual experience. It enforces absolute rigor to prevent common AI design tells (unnecessary emojis, random spacing, generic components).
 
-### Principes d'Hygiène Visuelle Stricte
-- **Moins mais mieux** : Élimination de toute fioriture sans fonction claire.
-- **Grille de 8px stricte** : Multiples de 8 pour tous les espacements (Tailwind: `p-2`, `m-8`, etc.).
-- **Logos textuels** : Utilisation de texte stylisé haut de gamme si aucun logo n'est fourni.
-- **Auto-correction visuelle** : Utilisation obligatoire de Playwright pour chasser "l'odeur d'IA".
+### Strict Visual Hygiene Principles
+- **Less is more**: Elimination of any cosmetic element without a clear function.
+- **Strict 8px grid**: Multiples of 8 for all spacing (Tailwind: `p-2`, `m-8`, etc.).
+- **Textual logos**: Use premium stylized typography if no logo asset is provided.
+- **Visual self-correction**: Mandatory use of Playwright to eliminate "AI slop".
 
-## Workflow d'Amélioration
+## Improvement Workflow
 
-### 1. Audit et Définition (Le "Cerveau")
-Définir le système de design dans `DESIGN.md`.
-- Mapper les variables sémantiques vers **shadcn/ui**.
-- Justifier chaque choix technique.
+### 1. Audit & Definition (The "Brain")
+Define the design system in a `DESIGN.md` file.
+- Map semantic variables to **shadcn/ui**.
+- Justify every technical layout decision.
 
-### 2. Implémentation Structurelle (Le "Corps")
-- Utiliser exclusivement les primitives **shadcn/ui**.
-- Configurer `globals.css` via les variables du `DESIGN.md`.
+### 2. Structural Implementation (The "Body")
+- Exclusively use **shadcn/ui** primitives.
+- Configure `globals.css` using the variables defined in `DESIGN.md`.
 
-### 3. Dynamisme avec GSAP (L' "Âme")
-- Orchestration des entrées et effets au scroll.
-- Respecter les timings stricts de `gsap-best-practices.md`.
+### 3. Dynamism with GSAP (The "Soul")
+- Orchestrate entrance animations and scroll effects.
+- Adhere strictly to the timings in `gsap-best-practices.md`.
 
-### 4. Inspection Visuelle (Les "Yeux" via Playwright)
-- Audit obligatoire du rendu réel.
-- Correction immédiate des défauts de géométrie ou d'artefacts IA.
+### 4. Visual Inspection (The "Eyes" via Playwright)
+- Mandatory rendering audit of the actual interface.
+- Instant correction of geometry errors or AI artifacts.
 
-## Chasse à l'Odeur d'IA (Antipatterns)
+## Hunting AI Slop (Antipatterns)
 
-| Antipattern | "Odeur d'IA" | Remède Professionnel |
+| Antipattern | "AI Slop" Tell | Professional Remedy |
 |------------|-----------|-----------|
-| **Artefacts** | Emojis, stickers, sparkles | Suppression radicale |
-| **Logos inventés** | Placeholders graphiques bizarres | Logos textuels stylisés |
-| **Géométrie bancale** | Espacements asymétriques | Grille 8px stricte |
-| **shadcn/ui générique** | Look "out of the box" | Personnalisation via variables CSS |
-| **Icônes génériques** | Lucide random sans contexte | Pack cohérent ou custom SVG |
-| **Gradients clichés** | Dégradés bleu/violet sans but | Couleurs sémantiques solides |
+| **Artifacts** | Emojis, stickers, sparkles | Radical suppression |
+| **Invented Logos** | Strange graphic placeholders | Stylized typography logos |
+| **Wobbly Geometry** | Asymmetrical spacing | Strict 8px grid |
+| **Generic shadcn/ui** | "Out of the box" default look | Customization via CSS variables |
+| **Generic Icons** | Random Lucide icons without context | Cohesive pack or custom SVG |
+| **Cliché Gradients** | Purposeless blue/purple gradients | Solid semantic colors |
 
-## Structure du Skill
+## Skill Structure
 
 ```
 web-design-enhancer/
-├── SKILL-v2.md                      # Documentation principale
-├── README.md                         # Ce fichier
+├── SKILL.md                          # Main documentation
+├── README.md                         # This file
 ├── references/
-│   ├── design-md-spec-v2.md        # Spécification DESIGN.md (Format shadcn/ui)
-│   ├── gsap-best-practices.md      # Guide GSAP
-│   └── api_reference.md            # Référence technique
+│   ├── design-md-spec-v2.md        # DESIGN.md specification (shadcn/ui format)
+│   ├── gsap-best-practices.md      # GSAP best practices guide
+│   └── api_reference.md            # Technical API reference
 ├── scripts/
-│   ├── detect_ai_slop.py           # Détecteur d'antipatterns
-│   └── visual_audit.py             # Audit visuel (Playwright)
+│   ├── detect_ai_slop.py           # AI slop and antipattern detector
+│   └── visual_audit.py             # Visual layout audit script (Playwright)
 └── templates/
-    ├── design-system.css           # Template variables CSS
-    └── design-md-template.md       # Template DESIGN.md
+    ├── design-system.css           # CSS variables template
+    └── design-md-template.md       # DESIGN.md template
 ```
 
-## Checklist Avant Livraison
+## Checklist Before Delivery
 
-- [ ] `DESIGN.md` créé et mappé sur shadcn/ui.
-- [ ] Grille de 8px respectée sur tout le site.
-- [ ] Zéro emoji ou sticker "décoratif".
-- [ ] Audit visuel Playwright passé avec succès.
-- [ ] Animations GSAP fluides et intentionnelles.
+- [ ] `DESIGN.md` created and mapped onto shadcn/ui.
+- [ ] Strict 8px grid respected across the entire website.
+- [ ] Zero "decorative" emojis or stickers.
+- [ ] Playwright visual audit completed successfully.
+- [ ] Fluid and intentional GSAP animations.
 
 ---
-**Créé pour transformer le code IA en design d'exception.**
+**Created to transform AI code into exceptional design.**
