@@ -1,4 +1,4 @@
-# Web Design Enhancer v2.3
+# Web Design Enhancer
 
 **Eradicate AI visual improvisation and deliver premium, clean, and professional interfaces.**
 
