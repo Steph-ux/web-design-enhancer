@@ -6,7 +6,8 @@ Valide un fichier DESIGN.md pour éviter le "AI slop":
 - Vérifie les espacements (multiples de 8px)
 - Valide la typographie (max 2 polices)
 - Contrôle les couleurs (rôles sémantiques)
-- Audit les animations (≤ 400ms)
+- Audit les animations (≤ 400ms) — gère ms ET secondes
+- Valide le contraste WCAG AA (4.5:1 texte, 3.0:1 UI)
 - Détecte les antipatterns (gradients clichés, icônes génériques)
 
 Usage:
@@ -45,6 +46,7 @@ class DesignValidator:
         self._validate_structure()
         self._validate_typography()
         self._validate_colors()
+        self._validate_wcag_contrast()
         self._validate_spacing()
         self._validate_animations()
         self._validate_components()
@@ -165,28 +167,98 @@ class DesignValidator:
             self.warnings.append("⚠️  Grille 8px non mentionnée explicitement")
 
     def _validate_animations(self):
-        """Valide les animations (durée ≤ 400ms)"""
+        """Valide les animations (durée ≤ 400ms) — gère ms et s séparément."""
         animations_section = self.sections.get("animations", "")
 
-        # Détecte les durées d'animation
-        duration_pattern = r"(\d+)\s*m?s"
-        durations = re.findall(duration_pattern, animations_section)
+        # Durées explicitement en millisecondes (ex: 200ms, 300ms, 50ms)
+        ms_raw = re.findall(r"(\d+(?:\.\d+)?)\s*ms\b", animations_section)
+        ms_values = [(float(v), f"{v}ms") for v in ms_raw]
 
-        invalid_durations = []
-        for duration in durations:
-            value = int(duration)
-            if value > 400:
-                invalid_durations.append(value)
+        # Durées en secondes (ex: 0.3s, 1s, 2s) — exclut le mot "seconds"
+        # Le pattern ne matche PAS "Nms" car après N vient 'm', pas 's' directement
+        s_raw = re.findall(r"(\d+(?:\.\d+)?)\s*s(?!econds)\b", animations_section)
+        s_values = [(float(v) * 1000, f"{v}s → {float(v)*1000:.0f}ms") for v in s_raw]
+
+        all_durations = ms_values + s_values
+        invalid_durations = [(ms_val, label) for ms_val, label in all_durations if ms_val > 400]
 
         if invalid_durations:
+            labels = [label for _, label in invalid_durations]
             self.errors.append(
-                f"❌ Animations trop longues: {invalid_durations}ms. "
+                f"❌ Animations trop longues: {', '.join(labels)}. "
                 f"Maximum 400ms recommandé"
             )
 
         # Vérifie prefers-reduced-motion
         if "prefers-reduced-motion" not in animations_section.lower():
             self.warnings.append("⚠️  Pas de mention de prefers-reduced-motion")
+
+    # ------------------------------------------------------------------ #
+    # WCAG AA Contrast                                                    #
+    # ------------------------------------------------------------------ #
+
+    def _hex_to_rgb(self, hex_color: str) -> tuple:
+        """Convertit #RRGGBB en tuple (R, G, B) — valeurs 0-255."""
+        h = hex_color.lstrip("#")
+        return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+
+    def _relative_luminance(self, rgb: tuple) -> float:
+        """Luminance relative WCAG 2.1 (https://www.w3.org/TR/WCAG21/#dfn-relative-luminance)."""
+        def linearize(c: int) -> float:
+            s = c / 255.0
+            return s / 12.92 if s <= 0.04045 else ((s + 0.055) / 1.055) ** 2.4
+        r, g, b = (linearize(c) for c in rgb)
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+    def _contrast_ratio(self, hex1: str, hex2: str) -> float:
+        """Ratio de contraste WCAG entre deux couleurs hex."""
+        l1 = self._relative_luminance(self._hex_to_rgb(hex1))
+        l2 = self._relative_luminance(self._hex_to_rgb(hex2))
+        lighter, darker = max(l1, l2), min(l1, l2)
+        return (lighter + 0.05) / (darker + 0.05)
+
+    def _validate_wcag_contrast(self):
+        """Valide le contraste WCAG AA (texte 4.5:1, éléments UI 3.0:1)."""
+        colors_section = self.sections.get("colors", "")
+        hex_pattern = r"#[0-9A-Fa-f]{6}"
+
+        # Extraire les paires (rôle sémantique, couleur hex) depuis le tableau
+        role_map: Dict[str, str] = {}
+        for line in colors_section.splitlines():
+            hexes = re.findall(hex_pattern, line)
+            if not hexes:
+                continue
+            line_lower = line.lower()
+            if any(k in line_lower for k in ("texte", "text", "foreground", "corps")):
+                role_map.setdefault("text", hexes[0])
+            elif any(k in line_lower for k in ("fond", "background", "bg", "arrière")):
+                role_map.setdefault("bg", hexes[0])
+            elif any(k in line_lower for k in ("primaire", "primary")):
+                role_map.setdefault("primary", hexes[0])
+
+        if "text" not in role_map or "bg" not in role_map:
+            self.warnings.append(
+                "⚠️  WCAG: impossible d'identifier Texte/Fond automatiquement. "
+                "Nommez les rôles 'Texte' et 'Fond' explicitement dans le tableau de couleurs."
+            )
+            return
+
+        # Contraste Texte / Fond — WCAG AA texte normal: 4.5:1
+        ratio_text = self._contrast_ratio(role_map["text"], role_map["bg"])
+        if ratio_text < 4.5:
+            self.errors.append(
+                f"❌ WCAG AA: contraste Texte/Fond insuffisant {ratio_text:.2f}:1 "
+                f"({role_map['text']} sur {role_map['bg']}). Minimum: 4.5:1"
+            )
+
+        # Contraste Primaire / Fond — WCAG AA éléments UI: 3.0:1
+        if "primary" in role_map:
+            ratio_ui = self._contrast_ratio(role_map["primary"], role_map["bg"])
+            if ratio_ui < 3.0:
+                self.errors.append(
+                    f"❌ WCAG AA: contraste Primaire/Fond insuffisant {ratio_ui:.2f}:1 "
+                    f"({role_map['primary']} sur {role_map['bg']}). Minimum UI: 3.0:1"
+                )
 
     def _validate_components(self):
         """Valide les composants (max 3 variantes)"""

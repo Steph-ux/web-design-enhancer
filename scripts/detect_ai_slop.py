@@ -47,7 +47,7 @@ class AISloPDetector:
     SHADCN_DEFAULT_PATTERNS = [
         (r"cn\(""", "Utilisation de la fonction `cn()` sans personnalisation visible"),
         (r"<Button\s*[^>]*?variant=\"default\"", "Bouton shadcn/ui avec variant par défaut"),
-        (r"<Input\s*[^>]*?className=\"", "Input shadcn/ui sans className pour personnalisation"),
+        (r"<Input(?!\s[^>]*className)[^>]*/?>", "Input shadcn/ui sans className de personnalisation"),
     ]
 
     # Gradients clichés

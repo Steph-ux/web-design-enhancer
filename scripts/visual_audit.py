@@ -5,7 +5,7 @@ Vérifie:
 - Polices chargées (computed styles)
 - Espacements réels (multiples de 8px)
 - Absence d'éléments "AI slop" visibles (stickers, emojis non autorisés)
-- Screenshots pour inspection humaine/IA
+- Screenshots sur 4 breakpoints (mobile/tablet/desktop/wide)
 
 Usage:
     python3 visual_audit.py --url http://localhost:3000 --output ./audit-results
@@ -16,6 +16,14 @@ import argparse
 import os
 import json
 from pathlib import Path
+
+# Breakpoints standards — couvrent mobile, tablet, desktop et wide
+BREAKPOINTS = [
+    ("mobile",  375,  667),
+    ("tablet",  768,  1024),
+    ("desktop", 1280, 800),
+    ("wide",    1920, 1080),
+]
 
 async def run_audit(url, output_dir):
     from playwright.async_api import async_playwright
@@ -43,14 +51,17 @@ async def run_audit(url, output_dir):
             await browser.close()
             return
 
-        # 1. Capture Screenshots (Desktop & Mobile)
-        print("📸 Capture des screenshots...")
-        await page.screenshot(path=str(output_path / "desktop.png"), full_page=True)
-        results["screenshots"]["desktop"] = str(output_path / "desktop.png")
-        
-        await page.set_viewport_size({"width": 375, "height": 667})
-        await page.screenshot(path=str(output_path / "mobile.png"), full_page=True)
-        results["screenshots"]["mobile"] = str(output_path / "mobile.png")
+        # 1. Screenshots sur 4 breakpoints
+        print("📸 Capture des screenshots (4 breakpoints)...")
+        for name, width, height in BREAKPOINTS:
+            await page.set_viewport_size({"width": width, "height": height})
+            screenshot_path = str(output_path / f"{name}.png")
+            await page.screenshot(path=screenshot_path, full_page=True)
+            results["screenshots"][name] = screenshot_path
+            print(f"   ✓ {name} ({width}×{height}px)")
+
+        # Revenir en desktop pour l'audit DOM (référence stable)
+        await page.set_viewport_size({"width": 1280, "height": 800})
 
         # 2. Audit Typographie et Espacements via JS
         print("🔍 Analyse du DOM et des styles calculés...")
@@ -72,10 +83,10 @@ async def run_audit(url, output_dir):
                     // Fonts
                     fonts.add(style.fontFamily);
                     
-                    // Spacing (Padding/Margin)
+                    // Spacing (Padding/Margin) — FIX: .push() not .append()
                     ['paddingTop', 'paddingBottom', 'marginTop', 'marginBottom'].forEach(prop => {
                         if (!isMultipleOf8(style[prop])) {
-                            spacingErrors.append(`${el.tagName} ${el.className}: ${prop}=${style[prop]}`);
+                            spacingErrors.push(`${el.tagName} ${el.className}: ${prop}=${style[prop]}`);
                         }
                     });
 
@@ -118,7 +129,9 @@ async def run_audit(url, output_dir):
     with open(output_path / "audit_report.json", "w") as f:
         json.dump(results, f, indent=2)
     
+    screenshot_count = len(results["screenshots"])
     print(f"\n✅ Audit terminé. Résultats dans {output_dir}")
+    print(f"📸 Screenshots: {screenshot_count} breakpoints ({', '.join(results['screenshots'].keys())})")
     print(f"📊 Polices détectées: {len(results['fonts'])}")
     print(f"⚠️  Erreurs d'espacement: {len(results['spacing_errors'])}")
     print(f"🚫 Éléments Slop: {len(results['ai_slop_detected'])}")
