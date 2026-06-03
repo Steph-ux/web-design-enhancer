@@ -53,8 +53,8 @@ class AISloPDetector:
     STATUS_BADGE_PATTERNS = [
         (r"[●•◉]\s*[A-ZÀ-ÖØ-Þ][A-ZÀ-ÖØ-Þ\s]{4,}",
          "Point coloré + texte statut majuscule"),
-        (r"\b(?:EXCELLEN[TE]+|PREMIUM\s+QUALITY|ULTRA\s+FAST|HIGH\s+PERFORMANCE|VERIFIED|LIVE\s+NOW|TOP\s+RATED|ATMOSPHÈRE\s+\w+)\b",
-         "Label qualité générique en majuscules"),
+        (r"\b(?:PREMIUM\s+QUALITY|ULTRA\s+FAST|HIGH\s+PERFORMANCE|LIVE\s+NOW|TOP\s+RATED|ATMOSPHÈRE\s+\w+)\b",
+         "Syntagme statut IA (jamais un label de données légitime)"),
         (r"w-2\s+h-2\s+rounded-full\s+bg-(?:green|emerald|lime|teal)-\d{3}",
          "Point vert décoratif Tailwind (indicateur statut IA)"),
         (r"animate-pulse[^\"]*rounded-full|rounded-full[^\"]*animate-pulse",
