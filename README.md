@@ -45,6 +45,7 @@ Define the design system in a `DESIGN.md` file.
 | **Generic Icons** | Random Lucide icons without context | Cohesive pack or custom SVG |
 | **Cliché Gradients** | Purposeless blue/purple gradients | Solid semantic colors |
 | **Low Contrast** | Text or buttons hard to read | WCAG AA compliant colors |
+| **Status Badges** | Unrequested uppercase status labels or pulsing dots (e.g. ● LIVE NOW, ATMOSPHÈRE EXCELLENTE) | Radical suppression or explicit justification in DESIGN.md |
 
 ## Skill Structure
 
