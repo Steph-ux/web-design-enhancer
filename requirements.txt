@@ -1,0 +1,24 @@
+# ============================================================
+# web-design-enhancer-pro — Python dependencies
+# ============================================================
+# Install: pip install -r requirements.txt
+#
+# Python >= 3.9 required
+# ============================================================
+
+# --- Core (scripts/validate_design.py, detect_ai_slop.py, audit_spacing.py) ---
+# All standard library — no extra deps needed for core scripts.
+
+# --- scripts/search.py (core.py + design_system.py) ---
+# BM25 ranking engine
+rank-bm25>=0.2.2
+
+# --- scripts/visual_audit.py (Playwright) ---
+playwright>=1.44.0
+# After install, also run: playwright install chromium
+
+# --- Optional: faster color contrast computation ---
+# (validate_design.py uses pure stdlib by default; no extra dep needed)
+
+# --- Dev / Testing ---
+pytest>=8.2.0

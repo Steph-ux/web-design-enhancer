@@ -43,7 +43,9 @@ class DesignValidator:
         self._parse_sections()
 
         # Validations
+        self._validate_phase0_evidence()    # Gate 0 — preuve d'exécution Phase 0
         self._validate_structure()
+        self._validate_theme_originality()  # Niveau 1 — bloquer dès le DESIGN.md
         self._validate_typography()
         self._validate_colors()
         self._validate_wcag_contrast()
@@ -72,6 +74,97 @@ class DesignValidator:
         for name, pattern in sections.items():
             match = re.search(pattern, self.content, re.DOTALL | re.IGNORECASE)
             self.sections[name] = match.group(0) if match else ""
+
+    def _validate_phase0_evidence(self):
+        """
+        Gate 0 — Vérifie que Phase 0 a été réellement exécutée.
+        Sans preuve dans le DESIGN.md → bloque tout le reste.
+        Empêche l'IA de sauter Phase 0 et d'inventer le DESIGN.md depuis son training data.
+        """
+        missing = []
+
+        # Section obligatoire
+        if "## 0. Sources Phase 0" not in self.content:
+            self.errors.append(
+                "[PHASE 0 MANQUANTE] La section '## 0. Sources Phase 0' est absente du DESIGN.md. "
+                "Phase 0 (getdesign.md + UI/UX Pro Max) doit être exécutée avant tout code. "
+                "Utiliser templates/design-md-template.md comme base."
+            )
+            return  # Inutile de continuer — preuve totalement absente
+
+        # Vérifier que les placeholders ont été remplacés par de vraies valeurs
+        placeholder_patterns = [
+            (r"\[Ex:", "Contient encore des placeholders non remplis '[Ex: ...]'"),
+            (r"Brand utilisée\s*:\s*\[", "Brand getdesign.md non renseignée"),
+            (r"Commande exécutée\s*:\s*`npx getdesign@latest add <brand>`",
+             "Commande getdesign.md non exécutée (placeholder '<brand>' non remplacé)"),
+            (r"Requête exécutée\s*:\s*`python3 scripts/search\.py \"<description>\"",
+             "Commande UI/UX Pro Max non exécutée (placeholder non remplacé)"),
+            (r"Style retenu\s*:\s*\[",
+             "Style UI/UX Pro Max non renseigné — search.py doit être lancé"),
+            (r"Justification.*?:\s*\[",
+             "Justification du thème non renseignée"),
+        ]
+
+        for pattern, message in placeholder_patterns:
+            if re.search(pattern, self.content):
+                missing.append(message)
+
+        for msg in missing:
+            self.errors.append(f"[PHASE 0 INCOMPLÈTE] {msg}")
+
+        if missing:
+            self.errors.append(
+                "→ Exécuter Phase 0 avant de continuer : "
+                "(1) npx getdesign@latest add <brand>  "
+                "(2) python3 scripts/search.py '<description>' --design-system -p '<Projet>'  "
+                "(3) Remplir la section '## 0. Sources Phase 0' avec les vraies valeurs."
+            )
+
+    def _validate_theme_originality(self):
+        """
+        Niveau 1 — Détecte les thèmes et concepts IA clichés directement dans le DESIGN.md.
+        Bloque avant que le code soit écrit.
+        """
+        FORBIDDEN_THEMES = [
+            (r"\bdark\s+cyberpunk\b",
+             "'dark cyberpunk' — cliché IA #1 portfolios tech. Décrire la texture réelle à la place."),
+            (r"\bcyberneti[cq]",
+             "'cybernétique/cybernetic' — esthétique IA générique. Spécifier les vrais tokens visuels."),
+            (r"\bglow[\s-]cursor\b",
+             "Glow cursor — effet non demandé, signal IA fort. Supprimer du DESIGN.md."),
+            (r"\bgrid[\s-]background\b",
+             "Grid background — fond grille présent dans 90% des portfolios dev IA. Utiliser fond uni."),
+            (r"\bglassmorphism\b",
+             "Glassmorphism — tendance épuisée. Autoriser uniquement pour modals/dropdowns fonctionnels."),
+            (r"\bneon[\s-]glow\b|\bneon[\s-]accent",
+             "Neon glow/accents — signal IA cyberpunk immédiat."),
+            (r"\bparticle(?:s)?[\s-](?:background|effect|js)\b",
+             "Particles background — overdone depuis 2018, signal IA fort."),
+            (r"\btyp(?:ewriter|ed)[\s-]effect\b|\btyped\.js\b",
+             "Typewriter/typed effect — cliché portfolio dev. Titre statique uniquement."),
+            (r"\bsys[_\s]status\b",
+             "SYS_STATUS badge — injection IA non demandée. Doit être justifié dans le brief."),
+            (r"\bhero[\s-]badge\b",
+             "Hero badge décoratif — l'information est déjà dans le H1/H2. Supprimer."),
+            (r"\bstyle\s+(?:monitoring|grafana|datadog)\b",
+             "Style Monitoring/Grafana comme thème — générique IA pour profils sysadmin."),
+        ]
+
+        found = []
+        for pattern, message in FORBIDDEN_THEMES:
+            if re.search(pattern, self.content, re.IGNORECASE):
+                found.append(message)
+
+        for msg in found:
+            self.errors.append(f"[THÈME INTERDIT] {msg}")
+
+        if found:
+            self.errors.append(
+                "→ Corriger le DESIGN.md avant tout code. "
+                "Chaque concept interdit doit être remplacé par une description "
+                "spécifique au projet réel, pas au secteur."
+            )
 
     def _validate_structure(self):
         """Vérifie que toutes les sections obligatoires existent"""

@@ -100,6 +100,50 @@ Créer le `DESIGN.md` du projet en combinant les deux sources :
 
 Utiliser `templates/design-md-template.md` comme structure de base.
 
+#### 0d. Auto-validation anti-clichés IA (Obligatoire avant de valider le DESIGN.md)
+
+Avant de soumettre le DESIGN.md, poser cette question pour **chaque décision de thème** :
+
+> *"Est-ce que j'ai vu ce concept sur les 1000 derniers portfolios/landing pages générés par IA ?"*
+
+Si la réponse est oui → le remplacer par quelque chose de spécifique au projet réel.
+
+**Thèmes et concepts strictement interdits dans le DESIGN.md :**
+
+| Concept interdit | Pourquoi | Alternative |
+|---|---|---|
+| `dark cyberpunk` / `cybernetic` | Cliché IA #1 pour portfolios tech | Décrire la texture réelle : "surfaces matte carbon avec typographie monospace" |
+| `glow cursor` | Effet surutilisé, non demandé | Supprimer — aucun équivalent nécessaire |
+| `grid background` (grille de fond) | Présent dans 90% des portfolios dev IA | Fond uni ou gradient radial très subtil seulement si justifié |
+| `glassmorphism` | Tendance épuisée, signal IA fort | `backdrop-filter` uniquement sur éléments fonctionnels (modals, dropdowns) |
+| `neon glow` / `neon accents` | Signal IA cyberpunk immédiat | Couleurs à contraste élevé sans `box-shadow` lumineux |
+| `particle background` / `particles.js` | Overdone depuis 2018 | Fond statique ou motif CSS subtil |
+| `typewriter effect` / `typed.js` | Cliché portfolio dev #1 | Titre statique — le contenu parle, pas l'animation |
+| `SYS_STATUS: ONLINE` / badges système | Injection IA non demandée | Supprimer — ou justifier fonctionnellement dans le brief |
+| `hero badge` décoratif ("SecOps & Admin") | L'info est déjà dans le H1/H2 | Supprimer — toute info badge doit être dans le texte |
+| Lucide icons sur **tous** les éléments | Icons génériques interchangeables | SVG custom ou icons limitées aux éléments fonctionnels |
+| `style monitoring (Grafana/Datadog)` comme thème | Générique IA pour profils sysadmin | Identifier ce qui est unique au projet, pas au secteur |
+
+**Règle d'or :** Si un élément n'est pas dans le brief original, il n'est pas dans le DESIGN.md.
+
+
+Valider le DESIGN.md avant tout code :
+
+```bash
+python3 scripts/check.py --gate 0   # Vérifie que Phase 0 a été exécutée
+python3 scripts/check.py --gate 1   # Valide le DESIGN.md
+```
+
+**Si l'un de ces deux commandes retourne une erreur → ne pas passer à Phase 1. Corriger et relancer.**
+
+Valider le DESIGN.md avant tout code :
+
+```bash
+python3 scripts/validate_design.py DESIGN.md
+```
+
+`validate_design.py` détecte automatiquement les thèmes interdits et bloque la progression.
+
 ---
 
 ### Phase 1 — Contrat de Design (Le "Cerveau")
@@ -111,6 +155,14 @@ Le `DESIGN.md` final doit être complet avant tout code. Exigences minimales :
 - **Espacements** : Tous en multiples de 8px
 - **Animations** : ≤ 400ms, mention de `prefers-reduced-motion` obligatoire
 - **Composants** : Maximum 3 variantes par type
+
+Valider avant de continuer :
+
+```bash
+python3 scripts/check.py --gate 1
+```
+
+**Si la commande retourne une erreur → corriger le DESIGN.md. Ne pas écrire une ligne de code avant que ce gate soit vert.**
 
 Valider avant de continuer :
 

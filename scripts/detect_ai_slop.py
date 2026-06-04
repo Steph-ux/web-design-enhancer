@@ -45,9 +45,20 @@ class AISloPDetector:
 
     # Patterns pour détecter l'utilisation par défaut de shadcn/ui (sans personnalisation)
     SHADCN_DEFAULT_PATTERNS = [
-        (r"cn\(""", "Utilisation de la fonction `cn()` sans personnalisation visible"),
         (r"<Button\s*[^>]*?variant=\"default\"", "Bouton shadcn/ui avec variant par défaut"),
         (r"<Input(?!\s[^>]*className)[^>]*/?>", "Input shadcn/ui sans className de personnalisation"),
+    ]
+
+    # Badges statut IA non demandés — ● ATMOSPHÈRE EXCELLENTE, LIVE NOW, etc.
+    STATUS_BADGE_PATTERNS = [
+        (r"[●•◉]\s*[A-ZÀ-ÖØ-Þ][A-ZÀ-ÖØ-Þ\s]{4,}",
+         "Point coloré + texte statut majuscule"),
+        (r"\b(?:PREMIUM\s+QUALITY|ULTRA\s+FAST|HIGH\s+PERFORMANCE|LIVE\s+NOW|TOP\s+RATED|ATMOSPHÈRE\s+\w+)\b",
+         "Syntagme statut IA (jamais un label de données légitime)"),
+        (r"w-2\s+h-2\s+rounded-full\s+bg-(?:green|emerald|lime|teal)-\d{3}",
+         "Point vert décoratif Tailwind (indicateur statut IA)"),
+        (r"animate-pulse[^\"]*rounded-full|rounded-full[^\"]*animate-pulse",
+         "Point animé (pulse) décoratif — signal IA fréquent"),
     ]
 
     # Gradients clichés
@@ -130,6 +141,9 @@ class AISloPDetector:
         # Détecte les polices génériques
         self._detect_generic_fonts(content)
 
+        # Détecte les badges statut IA
+        self._detect_status_badges(content)
+
     def _check_code_directory(self):
         """Vérifie les fichiers de code"""
         if not self.code_dir.exists():
@@ -147,6 +161,12 @@ class AISloPDetector:
             self._detect_shadcn_defaults(file_path.read_text(encoding="utf-8", errors="ignore"), file_path)
         for file_path in self.code_dir.rglob("*.jsx"):
             self._detect_shadcn_defaults(file_path.read_text(encoding="utf-8", errors="ignore"), file_path)
+
+        # Détecte les badges statut IA dans le code
+        for file_path in self.code_dir.rglob("*.tsx"):
+            self._detect_status_badges(file_path.read_text(encoding="utf-8", errors="ignore"), file_path)
+        for file_path in self.code_dir.rglob("*.jsx"):
+            self._detect_status_badges(file_path.read_text(encoding="utf-8", errors="ignore"), file_path)
 
     def _check_code_file(self, file_path: Path):
         """Vérifie un fichier de code"""
@@ -179,6 +199,25 @@ class AISloPDetector:
                 "suggestion": "Considérer une approche plus unique"
             })
             self.score -= 10
+
+
+    def _detect_status_badges(self, content: str, file_path: Path = None):
+        """Détecte les badges statut IA non demandés (● ATMOSPHÈRE EXCELLENTE, LIVE NOW, etc.)"""
+        for pattern, message in self.STATUS_BADGE_PATTERNS:
+            if re.search(pattern, content, re.IGNORECASE):
+                issue = {
+                    "type": "status_badge",
+                    "severity": "warning",
+                    "message": f"Badge statut IA: {message}",
+                    "suggestion": (
+                        "Supprimer ce badge — non demandé, signal IA immédiat. "
+                        "Si un statut est fonctionnellement nécessaire, le justifier dans DESIGN.md."
+                    )
+                }
+                if file_path:
+                    issue["file"] = str(file_path)
+                self.issues.append(issue)
+                self.score -= 8
 
     def _detect_buzzwords(self, content: str):
         """Détecte les buzzwords vagues"""
