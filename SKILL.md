@@ -167,6 +167,34 @@ python3 scripts/check.py --gate 1
 
 ### Phase 2 — Structural Implementation (the "Body")
 
+#### Phase 2a — Structural Decision Lock (mandatory, before any code)
+
+> **Why this step exists.** Phase 2 below is token-level (primitives, variables, grid).
+> Without an explicit structural lock first, the agent takes the path of least resistance —
+> tweaking `--primary`, swapping radii, adjusting padding — and ships a design that looks
+> different but is structurally identical to a generic template. The validator catches
+> tokens; only the agent itself can lock structure.
+
+Before writing the first line of code, the agent must quote, in its own response, **3 structural decisions** taken from `DESIGN.md`:
+
+- **Mobile native target** (§9 present): quote `Primary screen pattern`, `Navigation pattern → Type`, `Primary CTA → Position`.
+- **Web-only target** (§9 absent): quote `Card structure` (§6), the section pattern chosen (Hero/Features/Pricing variant in §1 or §6), and the Primary button shape from §6.
+
+If any quoted decision is still a placeholder (`[A | B | C]` or `[Ex: ...]`), stop — the contract was not committed to. Fix DESIGN.md, rerun `check.py --gate 1`, then resume.
+
+Format example (web-only):
+
+```
+Structural lock — decisions from DESIGN.md:
+1. Card structure: `surface-card` background, hairline border, 24px padding (§6)
+2. Section pattern: split-pane dashboard, left sidebar, dense header (§1)
+3. Primary button: filled, 4px radius, no shadow (§6)
+```
+
+This block is the entry ticket for Phase 2 — no lock, no code.
+
+#### Phase 2 — Token-level implementation
+
 - **Primitives**: exclusively **shadcn/ui** components (Button, Card, Dialog, Input, Table...). Recreating these blocks from raw `div`s is forbidden.
 - **Variables**: configure `globals.css` only via CSS variables defined in DESIGN.md (`--primary`, `--background`, `--radius`...).
 - **Grid**: Tailwind classes in multiples of 8 only (`p-2`, `p-4`, `p-8`, `gap-4`, `gap-8`). Arbitrary values (`p-[11px]`, `mt-[13px]`) are strictly forbidden.
