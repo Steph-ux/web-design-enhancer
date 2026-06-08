@@ -181,11 +181,42 @@ IconButton(
 - **RN strategy:** `useSafeAreaInsets()` from `react-native-safe-area-context`
 - **Flutter strategy:** `MediaQuery.of(context).padding` or `SafeArea` widget
 
-### Mobile navigation
+### Mobile component anatomy
 
-- **Pattern:** [Tab Bar (iOS) | Bottom Navigation (Android) | Navigation Drawer | Stack]
-- **Tab Bar:** [Ex: max 5 tabs, icon + label, 83pt height on iPhone with home indicator]
+> These sections override §6 when the target is mobile native.
+> Web-only projects use §6 instead. Fill every bracket — placeholders block `validate_design.py`.
+
+#### Screen patterns
+- **Screen types in scope:** [List | Detail | Form | Onboarding | Empty full-screen | Settings]
+- **Primary screen pattern:** [Ex: List → Detail with bottom tab bar]
+
+#### Navigation pattern
+- **Type:** [Tab Bar 5 items | Bottom Sheet | Drawer | Pure Stack]
+- **Position:** [Bottom (iOS) | Bottom (Android) | Top (web-first PWA)]
+- **Active state:** [color + filled icon + visible label | color only | icon swap only]
 - **Transitions:** [Ex: native push/pop, modal sheet, fullscreen cover]
+
+#### Card anatomy
+- **Structure:** [Image top | Left thumbnail | No image]
+- **Inner padding:** [16pt / 16dp]
+- **Content:** [Title + Subtitle + Action | Title + Meta + Badge]
+- **Interaction:** [Tap → detail | Swipe → actions | Long-press → menu]
+
+#### List item
+- **Leading:** [Avatar 40pt | Icon 24pt | None]
+- **Content:** [Title + subtitle | Title only | Title + right-detail]
+- **Trailing:** [Chevron | Toggle | Action icon | None]
+- **Separator:** [Full-bleed | inset-leading | None]
+
+#### Primary CTA
+- **Position:** [Fixed bottom, margin 16pt | In scroll flow | Sticky header]
+- **Height:** [52pt minimum]
+- **Scroll behavior:** [Hides on scroll-down | Stays fixed | Shrinks]
+
+#### States
+- **Empty state:** [Illustration + title + CTA | Icon + title + CTA | Text only]
+- **Loading:** [Skeleton screen | Centered spinner | Card shimmer]
+- **Error:** [Inline under field | Bottom toast | Full-screen]
 
 ### Mobile animations
 
