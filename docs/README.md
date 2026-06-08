@@ -4,6 +4,25 @@ Technical reference for the skill. The [README](../README.md) covers the quick p
 
 ---
 
+## Quick start
+
+```bash
+# 1. Anchor on real references (mandatory)
+npx getdesign@latest add stripe
+python3 scripts/search.py "saas analytics dashboard" --design-system -p "MyProject"
+
+# 2. Fill DESIGN.md from the template
+cp templates/design-md-template.md DESIGN.md
+
+# 3. Validate the contract
+python3 scripts/check.py --gate 1
+
+# 4. After implementation, run the final gate
+python3 scripts/check.py --final --code ./src
+```
+
+---
+
 ## Philosophy: Anti-"AI Slop"
 
 This skill transforms any AI-generated interface into a professional-quality result. It enforces a mechanical rigor that makes producing "AI slop" patterns impossible — even with an unsupervised agent.
