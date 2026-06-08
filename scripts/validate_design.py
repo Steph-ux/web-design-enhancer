@@ -639,6 +639,11 @@ class DesignValidator:
                         )
                     break
 
+        # ── Unfilled placeholders ────────────────────────────────────────
+        # Same loophole as §9: section present but `[Ex: ...]` left as-is
+        # means the agent never committed to actual values.
+        self._check_unfilled_placeholders("§8 Dark Mode", darkmode_section)
+
 
     def _validate_mobile(self):
         """Validate Mobile section (§9) if present.
@@ -726,10 +731,66 @@ class DesignValidator:
                 "Mention VoiceOver (iOS) / TalkBack (Android) and accessibility labels."
             )
 
+        # ── Component anatomy ────────────────────────────────────────────
+        # Structural contract — without these, the agent only edits tokens.
+        # The 6 subsections override §6 for mobile native targets.
+        required_subsections = [
+            ("Screen patterns",   r"####\s+Screen\s+patterns\b"),
+            ("Navigation pattern",r"####\s+Navigation\s+pattern\b"),
+            ("Card anatomy",      r"####\s+Card\s+anatomy\b"),
+            ("List item",         r"####\s+List\s+item\b"),
+            ("Primary CTA",       r"####\s+Primary\s+CTA\b"),
+            ("States",            r"####\s+States\b"),
+        ]
+        missing_anatomy = [
+            name for name, pattern in required_subsections
+            if not re.search(pattern, mobile_section, re.IGNORECASE)
+        ]
+        if missing_anatomy:
+            self.errors.append(
+                f"[ERROR] §9 Mobile component anatomy incomplete — missing subsections: "
+                f"{', '.join(missing_anatomy)}. "
+                f"Without structural contract the agent only edits tokens. "
+                f"Use templates/design-md-template.md §9 as the base."
+            )
+
+        # ── Unfilled placeholders ────────────────────────────────────────
+        self._check_unfilled_placeholders("§9 Mobile", mobile_section)
+
         # If the section is well-filled, confirm silently
         if mobile_section and len(mobile_section) > 200:
             pass  # No useless message
 
+    def _check_unfilled_placeholders(self, section_label: str, section_content: str):
+        """Reject unfilled bracket placeholders that signal a contract not committed to.
+
+        Two shapes block:
+          - `[A | B | C]` — multiple choices that should have been narrowed to one
+          - `[Ex: ...]`   — example placeholders left as-is
+
+        Without this check, an agent can ship a DESIGN.md that looks complete
+        (sections present) but commits to no structural decision — the exact
+        loophole that lets the implementation fall back to token edits only.
+        """
+        # Choice-style placeholders: [option1 | option2 | option3]
+        choice_pattern = re.compile(r"\[[^\]\n]+\|[^\]\n]+\]")
+        choices = choice_pattern.findall(section_content)
+        # Example-style placeholders: [Ex: ...]
+        example_pattern = re.compile(r"\[Ex:[^\]]+\]", re.IGNORECASE)
+        examples = example_pattern.findall(section_content)
+
+        if choices:
+            sample = choices[:3]
+            self.errors.append(
+                f"[ERROR] {section_label}: {len(choices)} unfilled choice placeholder(s) "
+                f"(e.g. {sample}). Narrow each '[A | B | C]' to a single committed value."
+            )
+        if examples:
+            sample = examples[:3]
+            self.errors.append(
+                f"[ERROR] {section_label}: {len(examples)} unfilled '[Ex: ...]' placeholder(s) "
+                f"(e.g. {sample}). Replace examples with the project's real values."
+            )
 
     def _validate_dark_mode_required(self):
         """§8 is mandatory if the main background is dark (lum < 9%)."""

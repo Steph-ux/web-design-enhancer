@@ -100,7 +100,7 @@ This document defines the strict design rules for the project. Every implementat
 ## 8. Dark Mode
 
 > **Mandatory.** Without an explicit dark mode contract, the implementation will be improvised.
-> `validate_design.py` blocks if this section is absent or insufficient (< 3 colors).
+> `validate_design.py` blocks if this section is absent or insufficient (< 3 colors). Unfilled brackets (`[Ex: ...]`) block too — replace examples with real hex values.
 
 | Role | Hex | Light equivalent |
 | :--- | :--- | :--- |
@@ -123,7 +123,7 @@ This document defines the strict design rules for the project. Every implementat
 ## 9. Mobile
 
 > **Optional for web-only projects. Mandatory as soon as a native or hybrid app is in scope.**
-> `validate_design.py` validates this section if present — touch targets, safe areas, native units, accessibility.
+> `validate_design.py` validates this section if present — touch targets, safe areas, native units, **component anatomy**, accessibility. Unfilled brackets (`[A | B | C]`, `[Ex: ...]`) block validation: narrow each choice to one committed value.
 
 ### Target platform(s)
 
