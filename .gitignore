@@ -156,3 +156,6 @@ Desktop.ini
 
 # Local audit / test results
 /audit-results/
+
+# Playwright MCP session logs (ephemeral debug output)
+.playwright-mcp/

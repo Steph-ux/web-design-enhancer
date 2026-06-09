@@ -216,7 +216,19 @@ def _search_csv(filepath, search_cols, output_cols, query, max_results):
 
 
 def detect_domain(query):
-    """Auto-detect the most relevant domain from query"""
+    """Auto-detect the most relevant domain from query.
+
+    Matching: keyword is found if it appears as a substring delimited by
+    non-letter/non-digit boundaries (handles "#FF0000", "e-commerce",
+    multi-word phrases). Plain ``\\b`` regex fails on keywords that start
+    or end with non-word chars (``#``, ``e-commerce``).
+
+    Tie-breaking: ``max(dict, key=dict.get)`` returns the first key with
+    the highest score in insertion order. Domain order below is therefore
+    semantically meaningful — more specific domains MUST be listed before
+    more generic ones (e.g. ``page-flows`` before ``pttrns`` so a flow
+    query wins over a generic mobile-pattern query).
+    """
     query_lower = query.lower()
 
     domain_keywords = {
@@ -234,10 +246,16 @@ def detect_domain(query):
         "web": ["aria", "focus", "outline", "semantic", "virtualize", "autocomplete", "form", "input type", "preconnect"],
         "apple-hig": ["ios", "ipad", "ipados", "macos", "swiftui", "uikit", "hig", "apple", "tab bar", "navigation bar", "action sheet", "sf symbols", "dynamic island", "live activity", "widget"],
         "material-design-3": ["android", "material", "jetpack compose", "m3", "fab", "floating action", "snackbar", "navigation drawer", "navigation rail", "bottom sheet", "chip", "tonal"],
-        "pttrns": ["onboarding flow", "empty state", "pull to refresh", "swipe action", "splash screen", "walkthrough", "mobile pattern", "side menu", "tab bars"]
+        "pttrns": ["empty state", "pull to refresh", "swipe action", "splash screen", "walkthrough", "mobile pattern", "side menu", "tab bars"]
     }
 
-    scores = {domain: sum(1 for kw in keywords if re.search(r'\b' + re.escape(kw) + r'\b', query_lower)) for domain, keywords in domain_keywords.items()}
+    def _matches(kw, text):
+        # Substring match with non-alphanumeric boundaries — works for "#",
+        # "e-commerce", and multi-word phrases that plain \b would miss.
+        pattern = r'(?<![a-z0-9])' + re.escape(kw) + r'(?![a-z0-9])'
+        return re.search(pattern, text) is not None
+
+    scores = {domain: sum(1 for kw in keywords if _matches(kw, query_lower)) for domain, keywords in domain_keywords.items()}
     best = max(scores, key=scores.get)
     return best if scores[best] > 0 else "style"
 
