@@ -250,12 +250,28 @@ def detect_domain(query):
     }
 
     def _matches(kw, text):
-        # Substring match with non-alphanumeric boundaries — works for "#",
-        # "e-commerce", and multi-word phrases that plain \b would miss.
-        pattern = r'(?<![a-z0-9])' + re.escape(kw) + r'(?![a-z0-9])'
+        # Boundary check is only enforced on the side(s) where the keyword
+        # starts/ends with an alphanumeric char. Drops the lookaround on
+        # the non-alphanumeric side so "#" matches inside "#FF0000" and
+        # "e-commerce" matches as a token. Plain \b fails on both.
+        pattern = ''
+        if kw[:1].isalnum():
+            pattern += r'(?<![a-z0-9])'
+        pattern += re.escape(kw)
+        if kw[-1:].isalnum():
+            pattern += r'(?![a-z0-9])'
         return re.search(pattern, text) is not None
 
-    scores = {domain: sum(1 for kw in keywords if _matches(kw, query_lower)) for domain, keywords in domain_keywords.items()}
+    def _weight(kw):
+        # Multi-word keywords express more specific intent than single
+        # words. Weighting by word count lets "font pairing" beat
+        # "font" + "serif" and "empty state" beat "design".
+        return max(1, len(kw.split()))
+
+    scores = {
+        domain: sum(_weight(kw) for kw in keywords if _matches(kw, query_lower))
+        for domain, keywords in domain_keywords.items()
+    }
     best = max(scores, key=scores.get)
     return best if scores[best] > 0 else "style"
 
