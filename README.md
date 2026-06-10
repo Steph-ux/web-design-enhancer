@@ -1,56 +1,56 @@
 # web-design-enhancer-pro
 
-**Élimine les mauvaises habitudes des IA en design web.** Valide, bloque et corrige automatiquement les outputs génériques des modèles avant livraison.
+**Eliminates AI bad habits in web design.** Automatically validates, blocks, and fixes generic AI model outputs before delivery.
 
 ---
 
-## Ce que ça fait
+## What it does
 
-Chaque IA génère par défaut le même site : hero sombre + gradient bleu→violet + 3 colonnes de cartes + testimonials + CTA bleu. Ce skill rend ça **impossible à livrer**.
+By default, every AI generates the same website: dark hero + blue→purple gradient + 3-column card grid + testimonials + blue CTA. This skill makes that **impossible to deliver**.
 
-Il force l'IA à :
-1. **Choisir un style visuel** adapté au projet (pas le template par défaut)
-2. **Valider le design** contre un contrat DESIGN.md
-3. **Bloquer la livraison** si le résultat ressemble à un template générique
-
----
-
-## Utilisation — ce que tu fais
-
-Tu utilises l'IA normalement :
-
-```
-"Crée-moi un site pour mon agence de cosmétiques premium"
-```
-
-Le skill oblige l'IA à répondre d'abord :
-
-```
-Archétype sélectionné : §3 Luxury/Restrained
-Raison : cosmétiques premium → whitespace, typographie fine,
-palette ivoire + noir, pas de gradient bleu/violet.
-```
-
-Puis elle code avec ce style précis. À la fin, elle run les validations automatiques — et si le résultat ressemble trop à un template générique, c'est **bloqué**.
-
-**Tu n'as rien à faire de plus.** Le skill gère tout.
+It forces the AI to:
+1. **Choose a visual style** adapted to the project (not the default template)
+2. **Validate the design** against a DESIGN.md contract
+3. **Block delivery** if the result looks like a generic template
 
 ---
 
-## Même brief, styles différents
+## Usage — what you do
 
-Pour illustrer : un brief "app de finances personnelles" donne des résultats complètement différents selon l'archétype.
+You use the AI normally:
 
-| Archétype | Rendu | Ressemble à |
+```
+"Create a website for my premium cosmetics agency"
+```
+
+The skill forces the AI to respond first with:
+
+```
+Selected Archetype: §3 Luxury/Restrained
+Reasoning: premium cosmetics → whitespace, thin typography,
+ivory + black palette, no blue/purple gradients.
+```
+
+Then it codes with that precise style. At the end, it runs automatic validations — and if the result looks too much like a generic template, it is **blocked**.
+
+**You have nothing else to do.** The skill handles everything.
+
+---
+
+## Same brief, different styles
+
+To illustrate: a "personal finance app" brief yields completely different results depending on the archetype.
+
+| Archetype | Output | Looks like |
 |---|---|---|
-| *(sans skill — défaut IA)* | Dark + bleu-500 + gradient + 3 colonnes | Identique à 1000 autres fintech |
-| **§6 Technical/Monochrome** | Zinc/monochrome, dense, nombres tabulaires | Linear, Vercel |
-| **§3 Luxury/Restrained** | Ivoire, typo fine, 0 couleur vive | Cabinet privé, Aesop |
-| **§8 Data/Dashboard** | Fond sombre, couleur sémantique, charts first | Grafana propre, Amplitude |
+| *(without skill — AI default)* | Dark + blue-500 + gradient + 3 columns | Identical to 1000 other fintechs |
+| **§6 Technical/Monochrome** | Zinc/monochrome, dense, tabular numbers | Linear, Vercel |
+| **§3 Luxury/Restrained** | Ivory, thin typography, 0 bright colors | Private practice, Aesop |
+| **§8 Data/Dashboard** | Dark background, semantic colors, charts first | Clean Grafana, Amplitude |
 
-### Exemple de rendu : FC Méridien (Archétype §7 Playful/Expressive)
+### Rendering Example: FC Méridien (§7 Playful/Expressive Archetype)
 
-Voici le résultat généré avec ce skill pour un club de football (zéro template générique IA, typographie display forte, palette sur-mesure) :
+Here is the result generated with this skill for a football club (zero generic AI template, strong display typography, custom palette):
 
 ![Hero Section](assets/football-hero.png)
 
@@ -60,95 +60,95 @@ Voici le résultat généré avec ce skill pour un club de football (zéro templ
 
 ---
 
-## Les 10 archétypes
+## The 10 archetypes
 
-| # | Nom | Pour quel projet |
+| # | Name | For which project |
 |---|---|---|
-| §1 | Swiss/Typographic | Agence, culture, print-to-web |
-| §2 | Editorial/Magazine | Média, blog premium, journal |
-| §3 | Luxury/Restrained | Mode, cosmétiques, premium B2C |
-| §4 | Brutalist/Raw | Arte, niches, culturel, avant-garde |
-| §5 | Organic/Hand-crafted | Bien-être, artisan, nourriture, nature |
-| §6 | Technical/Monochrome | SaaS dev, API, CLI, outils B2B |
-| §7 | Playful/Expressive | App grand public, éducation, communauté |
+| §1 | Swiss/Typographic | Agency, culture, print-to-web |
+| §2 | Editorial/Magazine | Media, premium blog, newspaper |
+| §3 | Luxury/Restrained | Fashion, cosmetics, premium B2C |
+| §4 | Brutalist/Raw | Art, niches, cultural, avant-garde |
+| §5 | Organic/Hand-crafted | Wellness, artisan, food, nature |
+| §6 | Technical/Monochrome | Dev SaaS, API, CLI, B2B tools |
+| §7 | Playful/Expressive | Consumer app, education, community |
 | §8 | Data/Dashboard | Analytics, monitoring, BI, fintech |
-| §9 | Retro/Nostalgic | Gaming, niche, culture, expérimental |
-| §10 | Material/Tactile | App OS, design system, productivité |
+| §9 | Retro/Nostalgic | Gaming, niche, culture, experimental |
+| §10 | Material/Tactile | OS app, design system, productivity |
 
-→ Détail complet : [`references/design-archetypes.md`](references/design-archetypes.md)
+→ Full details: [`references/design-archetypes.md`](references/design-archetypes.md)
 
 ---
 
-## Les 6 gates de validation automatique
+## The 6 automatic validation gates
 
-Avant chaque livraison, l'IA run :
+Before each delivery, the AI runs:
 
 ```bash
 python3 scripts/check.py --final --code ./src
 ```
 
-| Gate | Outil | Ce qu'il bloque |
+| Gate | Tool | What it blocks |
 |---|---|---|
-| 1 | `detect_ai_slop.py` | Emojis, fausses stats, testimonials inventés, badges système, glassmorphism, gradient bleu/violet... |
-| 2 | `audit_spacing.py` | Espacements non-multiples de 8px |
-| 3 | `validate_design.py` | Contrastes WCAG AA, typographie hors-norme, DESIGN.md incomplet |
-| 4 | `diff_design_vs_code.py` | Couleurs/fonts/animations qui dévient du DESIGN.md |
-| 5 | `audit_accessibility.py` | `<img>` sans alt, `<button>` sans type, inputs sans label, viewport meta manquant... |
-| 6 | `audit_style_uniqueness.py` | **Score > 65/100 = livraison bloquée** — design trop proche du template générique |
+| 1 | `detect_ai_slop.py` | Emojis, fake stats, invented testimonials, system badges, glassmorphism, blue/purple gradients... |
+| 2 | `audit_spacing.py` | Spacings that are not multiples of 8px |
+| 3 | `validate_design.py` | WCAG AA contrast failures, off-spec typography, incomplete DESIGN.md |
+| 4 | `diff_design_vs_code.py` | Colors/fonts/animations that drift from DESIGN.md |
+| 5 | `audit_accessibility.py` | `<img>` without alt, `<button>` without type, inputs without labels, missing viewport meta... |
+| 6 | `audit_style_uniqueness.py` | **Score > 65/100 = delivery blocked** — design too close to the generic template |
 
 ---
 
-## Les patterns interdits (§0b)
+## Forbidden patterns (§0b)
 
-L'IA ne peut **jamais** produire ces éléments, quel que soit le projet :
+The AI can **never** produce these elements, regardless of the project:
 
-| Code | Pattern | Exemple interdit |
+| Code | Pattern | Forbidden Example |
 |---|---|---|
-| G1 | Badges système | `SYS_STATUS: ONLINE`, `NODE_STATUS` |
-| G7 | Animations non demandées | `@keyframes float`, `@keyframes pulse` |
-| A1 | Emojis dans l'UI | `✨ Nos fonctionnalités`, `🚀 Démarrer` |
-| A3 | Section "trusted by" inventée | Logos de clients fictifs |
-| A4 | Testimonials hardcodés | `<blockquote>` avec "Sarah, CEO" fictive |
-| B7 | Gradient bleu→violet sur hero | `linear-gradient(135deg, #3B82F6, #8B5CF6)` |
-| B8 | Glassmorphism sur tout | `backdrop-filter: blur()` sur 3+ éléments |
-| C7 | `font-size` en px sur `body` | `body { font-size: 16px }` — casse le zoom WCAG |
-| H1 | Viewport meta manquant | `<head>` sans `<meta name="viewport">` |
+| G1 | System badges | `SYS_STATUS: ONLINE`, `NODE_STATUS` |
+| G7 | Unrequested animations | `@keyframes float`, `@keyframes pulse` |
+| A1 | Emojis in the UI | `✨ Our features`, `🚀 Get started` |
+| A3 | Invented "trusted by" section | Fictional client logos |
+| A4 | Hardcoded testimonials | `<blockquote>` with fictional "Sarah, CEO" |
+| B7 | Blue→purple gradient on hero | `linear-gradient(135deg, #3B82F6, #8B5CF6)` |
+| B8 | Glassmorphism everywhere | `backdrop-filter: blur()` on 3+ elements |
+| C7 | `font-size` in px on `body` | `body { font-size: 16px }` — breaks WCAG zoom |
+| H1 | Missing viewport meta | `<head>` without `<meta name="viewport">` |
 
-→ Liste complète : [`SKILL.md §0b`](SKILL.md)
+→ Full list: [`SKILL.md §0b`](SKILL.md)
 
 ---
 
-## Structure du projet
+## Project structure
 
 ```
 web-design-enhancer-pro/
-├── SKILL.md                          # Instructions complètes du skill
+├── SKILL.md                          # Full skill instructions
 ├── scripts/
-│   ├── check.py                      # Orchestrateur des 6 gates
-│   ├── detect_ai_slop.py             # Détecteur de patterns IA (G/A/B/C/D/H)
+│   ├── check.py                      # Orchestrator for the 6 gates
+│   ├── detect_ai_slop.py             # AI pattern detector (G/A/B/C/D/H)
 │   ├── audit_accessibility.py        # WCAG 2.1 AA
-│   ├── audit_spacing.py              # Grille 8px
-│   ├── audit_style_uniqueness.py     # Détecteur Generic AI Template (T1–T12)
-│   ├── validate_design.py            # Contrat DESIGN.md
+│   ├── audit_spacing.py              # 8px grid
+│   ├── audit_style_uniqueness.py     # Generic AI Template detector (T1–T12)
+│   ├── validate_design.py            # DESIGN.md contract validation
 │   ├── diff_design_vs_code.py        # Drift code vs DESIGN.md
-│   └── visual_audit.py              # Audit Playwright 4 breakpoints
+│   └── visual_audit.py               # Playwright 4 breakpoints audit
 ├── references/
-│   ├── design-archetypes.md          # Les 10 archétypes — tokens CSS complets
-│   ├── gsap-best-practices.md        # Animations GSAP
-│   └── threejs-best-practices.md     # Scènes WebGL
+│   ├── design-archetypes.md          # The 10 archetypes — full CSS tokens
+│   ├── gsap-best-practices.md        # GSAP animations
+│   └── threejs-best-practices.md     # WebGL scenes
 ├── templates/
-│   └── design-md-template.md         # Squelette DESIGN.md
+│   └── design-md-template.md         # DESIGN.md skeleton
 └── tests/
-    ├── test_audit_accessibility.py   # 33 tests WCAG
-    ├── test_audit_style_uniqueness.py # 35 tests anti-template
-    └── test_detect_domain.py         # 57 tests détection domaine
+    ├── test_audit_accessibility.py   # 33 WCAG tests
+    ├── test_audit_style_uniqueness.py # 35 anti-template tests
+    └── test_detect_domain.py         # 57 domain detection tests
 ```
 
 ---
 
-## Lancer les tests
+## Running the tests
 
 ```bash
 py -m pytest tests/ -v
-# 125 tests — doit afficher 125 passed
+# 125 tests — should display 125 passed
 ```
