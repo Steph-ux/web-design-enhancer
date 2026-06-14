@@ -1,32 +1,36 @@
 #!/usr/bin/env python3
 """
-aesthetic_review.py — vision-model aesthetic judgment of rendered screenshots.
+aesthetic_review.py — aesthetic judgment of rendered screenshots.
 
 The Beauty Score (audit_beauty.py) measures craft markers from source code.
 But "is this magnificent at a glance?" is a question only an eye can answer.
-This script submits the rendered screenshots (from visual_audit.py) to a
-vision model and gets back a scored, structured verdict — the closest thing
-to a human designer looking at the page.
+This script turns the rendered screenshots (from visual_audit.py) into a
+scored, structured verdict — the closest thing to a human designer looking
+at the page.
 
 It is the Phase 4 counterpart to visual_audit.py: that one catches mechanical
 slop in the DOM; this one judges whether the result actually looks designed
 by a human.
 
-Two providers, OpenAI-compatible (default) and Anthropic. The model and base
-URL are configurable, so any OpenAI-compatible endpoint works.
-
-Credentials are read from the environment on the machine running the skill:
-  OPENAI_API_KEY      (provider=openai, default)
-  ANTHROPIC_API_KEY   (provider=anthropic)
+Two modes:
+  agent (DEFAULT) — the model executing this skill IS vision-capable, so it
+      judges with its OWN vision. No API key. The script emits the screenshots
+      + rubric + verdict schema; the agent looks, writes a verdict JSON, then
+      re-runs with --verdict to score it and get the gate exit code.
+  api — call an external vision model (OpenAI-compatible or Anthropic) for
+      fully-unsupervised pipelines. Reads OPENAI_API_KEY / ANTHROPIC_API_KEY
+      from the environment on the machine running the skill.
 
 Usage:
     # after visual_audit.py has produced ./audit-results/*.png
     python3 scripts/aesthetic_review.py --screenshots ./audit-results --archetype "§3 Luxury"
-    python3 scripts/aesthetic_review.py --screenshots ./audit-results --json
-    python3 scripts/aesthetic_review.py --screenshots ./audit-results --dry-run   # assemble request, no API call
+    #   -> prints screenshots + rubric; the agent looks, writes verdict.json, then:
+    python3 scripts/aesthetic_review.py --verdict verdict.json
+    # unsupervised, external model:
+    python3 scripts/aesthetic_review.py --screenshots ./audit-results --mode api --provider anthropic
 
 Exit codes:
-  0 — overall_score ≥ pass threshold (looks designed)
+  0 — overall_score ≥ pass threshold (looks designed) / agent manifest emitted
   1 — floor ≤ score < pass (acceptable, polish)
   2 — score < floor (BLOCKED — does not look human-designed)
 """
@@ -271,22 +275,29 @@ def exit_code_for(score: int, floor: int, passing: int) -> int:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="aesthetic_review",
-        description="Vision-model aesthetic judgment of rendered screenshots.",
+        description="Aesthetic judgment of rendered screenshots — by the agent's own vision (default) or an external vision API.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument("--screenshots", type=Path, default=Path("./audit-results"),
                    help="Directory of PNG screenshots (from visual_audit.py)")
     p.add_argument("--archetype", type=str, default=None,
                    help="Declared archetype, so the review judges against intent")
-    p.add_argument("--provider", choices=["openai", "anthropic"], default="openai")
-    p.add_argument("--model", type=str, default=None,
-                   help="Vision model (default: gpt-4o for openai, claude-3-5-sonnet-latest for anthropic)")
-    p.add_argument("--base-url", type=str, default="https://api.openai.com",
-                   help="API base URL (any OpenAI-compatible endpoint)")
+    p.add_argument("--mode", choices=["agent", "api"], default="agent",
+                   help="agent (default): the model executing the skill judges with its own vision, no API key. "
+                        "api: call an external vision model.")
+    p.add_argument("--verdict", type=Path, default=None,
+                   help="Path to a verdict JSON the agent produced; scores it and returns the gate exit code.")
     p.add_argument("--threshold", nargs=2, type=int, metavar=("FLOOR", "PASS"), default=[60, 75])
     p.add_argument("--json", action="store_true", dest="json_output")
+    # --- api mode only ---
+    p.add_argument("--provider", choices=["openai", "anthropic"], default="openai",
+                   help="(api mode) vision provider")
+    p.add_argument("--model", type=str, default=None,
+                   help="(api mode) vision model (default: gpt-4o / claude-3-5-sonnet-latest)")
+    p.add_argument("--base-url", type=str, default="https://api.openai.com",
+                   help="(api mode) API base URL (any OpenAI-compatible endpoint)")
     p.add_argument("--dry-run", action="store_true",
-                   help="Assemble the request and print a summary; do NOT call the API")
+                   help="(api mode) assemble the request and print a summary; do NOT call the API")
     return p
 
 
@@ -301,31 +312,62 @@ def main() -> int:
         print("Error: thresholds must satisfy 0 ≤ FLOOR < PASS ≤ 100.", file=sys.stderr)
         return 2
 
-    model = args.model or default_model(args.provider)
+    # Loop-closer: score a verdict the agent already produced with its own vision.
+    if args.verdict is not None:
+        try:
+            verdict = parse_verdict(args.verdict.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as e:
+            print(f"Error reading verdict: {e}", file=sys.stderr)
+            return 2
+        if args.json_output:
+            verdict["exit_code"] = exit_code_for(verdict["overall_score"], floor, passing)
+            print(json.dumps(verdict, indent=2, ensure_ascii=False))
+        else:
+            print_report(verdict, floor, passing)
+        return exit_code_for(verdict["overall_score"], floor, passing)
+
     try:
         shots = collect_screenshots(args.screenshots)
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)
         return 2
-
     breakpoints = [name for name, _ in shots]
     prompt = build_prompt(args.archetype, breakpoints)
-    builder = build_anthropic_payload if args.provider == "anthropic" else build_openai_payload
-    payload = builder(model, prompt, shots)
 
-    if args.dry_run:
-        summary = {
-            "provider": args.provider,
-            "model": model,
-            "base_url": args.base_url,
-            "breakpoints": breakpoints,
-            "n_images": len(shots),
-            "prompt_chars": len(prompt),
+    # Default: the model executing the skill judges with its OWN native vision — no API key.
+    if args.mode == "agent":
+        manifest = {
+            "status": "awaiting_agent_vision",
+            "instructions": (
+                "You (the model executing this skill) are vision-capable. Open each screenshot "
+                "listed below with your own vision, apply the rubric, and write the verdict JSON "
+                "to a file. Then run: python3 scripts/aesthetic_review.py --verdict <file.json> "
+                f"--threshold {floor} {passing}  to score it and get the gate exit code."
+            ),
+            "screenshots": [str(p.resolve()) for _, p in shots],
+            "rubric": prompt,
+            "verdict_schema": {
+                "overall_score": "int 0-100",
+                "verdict": "one line",
+                "reads_as": "human | ai",
+                "dimensions": {k: {"score": "int", "note": "str"} for k, _ in RUBRIC_DIMENSIONS},
+                "top_fixes": ["str", "..."],
+            },
             "thresholds": {"floor": floor, "pass": passing},
         }
-        print(json.dumps(summary, indent=2))
+        print(json.dumps(manifest, indent=2, ensure_ascii=False))
         return 0
 
+    # api mode: call an external vision model (for unsupervised pipelines).
+    model = args.model or default_model(args.provider)
+    payload = (build_anthropic_payload if args.provider == "anthropic" else build_openai_payload)(model, prompt, shots)
+    if args.dry_run:
+        print(json.dumps({
+            "provider": args.provider, "model": model, "base_url": args.base_url,
+            "breakpoints": breakpoints, "n_images": len(shots),
+            "prompt_chars": len(prompt), "thresholds": {"floor": floor, "pass": passing},
+        }, indent=2))
+        return 0
     try:
         raw = call_model(args.provider, args.base_url, model, payload)
         text = extract_text_anthropic(raw) if args.provider == "anthropic" else extract_text_openai(raw)
@@ -333,13 +375,11 @@ def main() -> int:
     except Exception as e:  # noqa: BLE001
         print(f"Error: {e}", file=sys.stderr)
         return 2
-
     if args.json_output:
         verdict["exit_code"] = exit_code_for(verdict["overall_score"], floor, passing)
         print(json.dumps(verdict, indent=2, ensure_ascii=False))
     else:
         print_report(verdict, floor, passing)
-
     return exit_code_for(verdict["overall_score"], floor, passing)
 
 

@@ -149,3 +149,40 @@ class TestDefaults:
     def test_default_models(self):
         assert ar.default_model("openai") == "gpt-4o"
         assert ar.default_model("anthropic") == "claude-3-5-sonnet-latest"
+
+
+import subprocess, json as _json, os
+
+class TestAgentMode:
+    def _shots(self):
+        return _shots_dir(("mobile","desktop"))
+
+    def test_agent_mode_emits_manifest(self):
+        d = _shots_dir(("mobile","desktop"))
+        script = str(Path(__file__).parent.parent / "scripts" / "aesthetic_review.py")
+        r = subprocess.run([sys.executable, script, "--screenshots", str(d), "--archetype", "§3 Luxury"],
+                           capture_output=True, text=True)
+        assert r.returncode == 0
+        m = _json.loads(r.stdout)
+        assert m["status"] == "awaiting_agent_vision"
+        assert len(m["screenshots"]) == 2
+        assert "§3 Luxury" in m["rubric"]
+        assert set(m["verdict_schema"]["dimensions"]) == {k for k,_ in ar.RUBRIC_DIMENSIONS}
+
+    def test_verdict_loop_scores_and_exits(self):
+        d = _shots_dir(("desktop",))
+        script = str(Path(__file__).parent.parent / "scripts" / "aesthetic_review.py")
+        vfile = Path(tempfile.mkdtemp()) / "verdict.json"
+        vfile.write_text(_json.dumps({"overall_score": 82, "verdict": "clean", "reads_as": "human"}))
+        r = subprocess.run([sys.executable, script, "--verdict", str(vfile), "--json"],
+                           capture_output=True, text=True)
+        assert r.returncode == 0  # 82 >= pass 75
+        out = _json.loads(r.stdout)
+        assert out["overall_score"] == 82 and out["exit_code"] == 0
+
+    def test_verdict_below_floor_blocks(self):
+        script = str(Path(__file__).parent.parent / "scripts" / "aesthetic_review.py")
+        vfile = Path(tempfile.mkdtemp()) / "v.json"
+        vfile.write_text(_json.dumps({"overall_score": 40}))
+        r = subprocess.run([sys.executable, script, "--verdict", str(vfile)], capture_output=True, text=True)
+        assert r.returncode == 2

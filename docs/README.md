@@ -109,7 +109,7 @@ python3 scripts/check.py --final --code ./src
 | `audit_style_uniqueness.py` | `--path ./src` | Generic AI Template detector — score > 65 blocks |
 | `audit_beauty.py` | `--path ./src` | Beauty Score (positive craft) — score < 50 blocks |
 | `audit_mobile.py` | `--path ./src` | Native craft + mobile gates (SwiftUI/Compose/Flutter/RN) |
-| `aesthetic_review.py` | `--screenshots ./audit-results` | Vision-model aesthetic judgment of rendered screenshots |
+| `aesthetic_review.py` | `--screenshots ./audit-results` | Aesthetic judgment of screenshots — agent's own vision by default (no key); --mode api optional |
 
 ---
 
