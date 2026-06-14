@@ -379,7 +379,7 @@ def check_gate2():
 
 # --- Final Gate — Full validation before delivery --------------------------
 
-def check_final(code_path=None, verbose=False):
+def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-results", verdict=None):
     print(f"\n{BOLD}{'='*60}{RESET}")
     print(f"{BOLD}  FINAL GATE — Validation before delivery{RESET}")
     print(f"{BOLD}{'='*60}{RESET}")
@@ -402,7 +402,7 @@ def check_final(code_path=None, verbose=False):
     errors = []
 
     # 1. detect_ai_slop.py
-    print(f"\n{CYAN}[1/7] Detecting AI antipatterns (HTML + CSS + JSX + code quality)...{RESET}")
+    print(f"\n{CYAN}[1/8] Detecting AI antipatterns (HTML + CSS + JSX + code quality)...{RESET}")
     slop_args = [sys.executable, str(SCRIPTS_DIR / "detect_ai_slop.py"), "--design", "DESIGN.md"]
     if code_path:
         slop_args += ["--code", code_path]
@@ -424,7 +424,7 @@ def check_final(code_path=None, verbose=False):
                 print(rj.stdout)
 
     # 2. audit_spacing.py
-    print(f"\n{CYAN}[2/7] 8px grid audit...{RESET}")
+    print(f"\n{CYAN}[2/8] 8px grid audit...{RESET}")
     spacing_path = code_path or "."
     r = subprocess.run(
         [sys.executable, str(SCRIPTS_DIR / "audit_spacing.py"), "--path", spacing_path],
@@ -435,7 +435,7 @@ def check_final(code_path=None, verbose=False):
         errors.append("audit_spacing.py — 8px grid violations")
 
     # 3. validate_design.py (final pass)
-    print(f"\n{CYAN}[3/7] Final DESIGN.md validation...{RESET}")
+    print(f"\n{CYAN}[3/8] Final DESIGN.md validation...{RESET}")
     r = subprocess.run(
         [sys.executable, str(SCRIPTS_DIR / "validate_design.py"), "DESIGN.md"],
         capture_output=True, text=True
@@ -445,7 +445,7 @@ def check_final(code_path=None, verbose=False):
         errors.append("validate_design.py — DESIGN.md contract not respected")
 
     # 4. diff_design_vs_code.py
-    print(f"\n{CYAN}[4/7] DESIGN.md <-> code diff...{RESET}")
+    print(f"\n{CYAN}[4/8] DESIGN.md <-> code diff...{RESET}")
     if code_path:
         r = subprocess.run(
             [sys.executable, str(SCRIPTS_DIR / "diff_design_vs_code.py"), "DESIGN.md", "--code", code_path],
@@ -458,7 +458,7 @@ def check_final(code_path=None, verbose=False):
         warn("diff_design_vs_code.py skipped (no --code provided)")
 
     # 5. audit_accessibility.py
-    print(f"\n{CYAN}[5/7] WCAG 2.1 AA accessibility audit...{RESET}")
+    print(f"\n{CYAN}[5/8] WCAG 2.1 AA accessibility audit...{RESET}")
     a11y_script = SCRIPTS_DIR / "audit_accessibility.py"
     if a11y_script.exists():
         a11y_args = [sys.executable, str(a11y_script)]
@@ -476,7 +476,7 @@ def check_final(code_path=None, verbose=False):
         warn("audit_accessibility.py not found — skipping accessibility check")
 
     # 6. audit_style_uniqueness.py
-    print(f"\n{CYAN}[6/7] Style uniqueness audit (Generic AI Template detector)...{RESET}")
+    print(f"\n{CYAN}[6/8] Style uniqueness audit (Generic AI Template detector)...{RESET}")
     uniqueness_script = SCRIPTS_DIR / "audit_style_uniqueness.py"
     if uniqueness_script.exists():
         uniq_args = [sys.executable, str(uniqueness_script), "--path", code_path or "."]
@@ -495,7 +495,7 @@ def check_final(code_path=None, verbose=False):
         warn("audit_style_uniqueness.py not found — skipping style uniqueness check")
 
     # 7. audit_beauty.py — positive craft floor (blocks soulless-but-clean designs)
-    print(f"\n{CYAN}[7/7] Beauty audit (craft & finish — blocks clean-but-soulless)...{RESET}")
+    print(f"\n{CYAN}[7/8] Beauty audit (craft & finish — blocks clean-but-soulless)...{RESET}")
     beauty_script = SCRIPTS_DIR / "audit_beauty.py"
     if beauty_script.exists():
         beauty_args = [sys.executable, str(beauty_script), "--path", code_path or "."]
@@ -514,11 +514,136 @@ def check_final(code_path=None, verbose=False):
     else:
         warn("audit_beauty.py not found — skipping beauty check")
 
+    # 8. Visual + aesthetic verification (Phase 4) — rendered DOM + vision judgment (mandatory)
+    print(f"\n{CYAN}[8/8] Visual + aesthetic verification (rendered DOM + vision)...{RESET}")
+    v_errors, v_warnings, v_infos = evaluate_visual_gate(
+        audit_output=audit_output, code_path=code_path, verdict=verdict, url=url
+    )
+    for _m in v_infos:
+        print(f"  {_m}")
+    for _w in v_warnings:
+        warn(_w)
+    for _e in v_errors:
+        fail(_e)
+    errors.extend(v_errors)
+
     _print_result(errors, "FINAL GATE")
     if not errors:
         mark_passed("final")
         _print_delivery_ok()
     return len(errors) == 0
+
+
+def _visual_audit_stale(report_file, code_path, audit_dir):
+    """Return the path of a source file newer than the visual audit report, or None."""
+    try:
+        report_mtime = report_file.stat().st_mtime
+    except OSError:
+        return None
+    root = Path(code_path) if code_path else Path(".")
+    try:
+        audit_dir_resolved = Path(audit_dir).resolve()
+    except OSError:
+        audit_dir_resolved = None
+    exts = {".html", ".htm", ".css", ".scss", ".sass", ".less",
+            ".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte", ".astro"}
+    newest = None
+    newest_file = None
+    for p in root.rglob("*"):
+        if not p.is_file() or p.suffix.lower() not in exts:
+            continue
+        try:
+            rp = p.resolve()
+        except OSError:
+            continue
+        if audit_dir_resolved is not None and (rp == audit_dir_resolved or audit_dir_resolved in rp.parents):
+            continue
+        try:
+            m = p.stat().st_mtime
+        except OSError:
+            continue
+        if newest is None or m > newest:
+            newest = m
+            newest_file = p
+    if newest is not None and newest > report_mtime + 1:
+        return str(newest_file)
+    return None
+
+
+def evaluate_visual_gate(audit_output="./audit-results", code_path=None, verdict=None, url=None):
+    """Phase 4 enforcement: require a fresh visual audit report + a passing aesthetic verdict.
+
+    Returns (errors, warnings, infos). Pure except for running aesthetic_review --verdict
+    when a verdict file is present. The rendered visual + vision pass is mandatory for
+    delivery — it cannot be bypassed by running only the static gates.
+    """
+    errors, warnings, infos = [], [], []
+    audit_dir = Path(audit_output)
+    report_file = audit_dir / "audit_report.json"
+    url_hint = url or "http://localhost:3000"
+
+    if not report_file.exists():
+        errors.append(
+            "Phase 4 visual audit missing — the rendered pass is mandatory before delivery. "
+            f"Render the site on a live server, then run: python3 scripts/visual_audit.py "
+            f"--url {url_hint} --output {audit_dir}"
+        )
+    else:
+        report = None
+        try:
+            report = json.loads(report_file.read_text(encoding="utf-8"))
+        except Exception as e:
+            errors.append(f"Visual audit report unreadable ({report_file}): {e}")
+        if report is not None:
+            stale = _visual_audit_stale(report_file, code_path, audit_dir)
+            if stale:
+                errors.append(
+                    f"Visual audit is stale — '{stale}' changed after the last render. "
+                    f"Re-render: python3 scripts/visual_audit.py --url {url_hint} --output {audit_dir}"
+                )
+            rendered_slop = (report.get("ai_slop_detected") or []) + (report.get("a_group_slop") or [])
+            if rendered_slop:
+                errors.append(
+                    f"Visual audit found {len(rendered_slop)} AI-slop element(s) in the RENDERED DOM "
+                    "(regex on static files cannot catch these). Fix and re-render."
+                )
+            n_spacing = len(report.get("spacing_errors") or [])
+            if n_spacing:
+                warnings.append(
+                    f"visual_audit — {n_spacing} rendered spacing value(s) off the 8px grid (review)."
+                )
+            if not rendered_slop and not stale:
+                infos.append(
+                    f"Rendered DOM clean ({len(report.get('screenshots') or {})} breakpoints captured)."
+                )
+
+    verdict_file = Path(verdict) if verdict else (audit_dir / "aesthetic-verdict.json")
+    if not verdict_file.exists():
+        errors.append(
+            "Aesthetic vision review missing — the rendered pass is mandatory before delivery. Run: "
+            f"python3 scripts/aesthetic_review.py --screenshots {audit_dir} --archetype \"<your §archetype>\", "
+            "open the screenshots with your own vision, write the verdict JSON it describes to "
+            f"'{verdict_file}', then re-run check.py --final."
+        )
+    else:
+        r = subprocess.run(
+            [sys.executable, str(SCRIPTS_DIR / "aesthetic_review.py"), "--verdict", str(verdict_file)],
+            capture_output=True, text=True
+        )
+        if r.stdout:
+            infos.append(r.stdout.rstrip())
+        if r.returncode == 2:
+            errors.append(
+                "aesthetic_review.py — BLOCKED: rendered design scored below the human-craft floor. "
+                "It does not yet read as human-designed. Raise the craft and re-render — "
+                "see references/beauty-gestures.md."
+            )
+        elif r.returncode == 1:
+            warnings.append(
+                "aesthetic_review.py — NEEDS POLISH: rendered design acceptable but below the pass mark. "
+                "Address the top_fixes in the verdict."
+            )
+    return errors, warnings, infos
 
 
 # --- Helpers ---------------------------------------------------------------
@@ -536,13 +661,19 @@ def _print_result(errors, gate_name):
     print(f"{BOLD}{'-'*60}{RESET}\n")
 
 def _print_delivery_ok():
-    print(f"""
-{GREEN}{BOLD}+----------------------------------------------+
-|  [OK]  DELIVERY AUTHORIZED                    |
-|  All 7 gates green. Zero AI slop detected.     |
-|  Design is unique — not a Generic AI Template. |
-+----------------------------------------------+{RESET}
-""")
+    lines = [
+        "[OK]  DELIVERY AUTHORIZED",
+        "",
+        "All 8 gates green — including the rendered",
+        "visual + vision pass.",
+        "Zero AI slop. Unique. Reads as human-crafted.",
+    ]
+    width = max(len(s) for s in lines) + 4
+    border = "+" + "-" * width + "+"
+    print(f"\n{GREEN}{BOLD}{border}")
+    for s in lines:
+        print("|  " + s.ljust(width - 2) + "|")
+    print(f"{border}{RESET}\n")
 
 
 # --- Entry point -----------------------------------------------------------
@@ -556,6 +687,12 @@ def main():
     parser.add_argument("--code",    type=str, default=None,  help="Source code path (for --final)")
     parser.add_argument("--verbose", action="store_true",
                         help="When --final fails, print fix_instructions from detect_ai_slop --json")
+    parser.add_argument("--url", type=str, default=None,
+                        help="Live dev-server URL for the Phase 4 visual audit (used in fix hints)")
+    parser.add_argument("--audit-output", type=str, default="./audit-results",
+                        help="Directory holding visual_audit report + screenshots + aesthetic verdict")
+    parser.add_argument("--verdict", type=str, default=None,
+                        help="Path to the aesthetic verdict JSON (default: <audit-output>/aesthetic-verdict.json)")
     args = parser.parse_args()
 
     if args.gate == 0:
@@ -565,7 +702,8 @@ def main():
     elif args.gate == 2:
         success = check_gate2()
     elif args.final:
-        success = check_final(args.code, verbose=args.verbose)
+        success = check_final(args.code, verbose=args.verbose, url=args.url,
+                              audit_output=args.audit_output, verdict=args.verdict)
 
     sys.exit(0 if success else 1)
 

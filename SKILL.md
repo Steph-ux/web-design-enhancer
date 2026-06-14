@@ -381,13 +381,13 @@ python3 scripts/aesthetic_review.py --verdict verdict.json
 
 It scores 7 dimensions an eye judges in the first seconds (first impression, hierarchy, whitespace/balance, typography, colour harmony, finish, **human-vs-AI tell**), returns an `overall_score`, a `reads_as: human|ai` flag, and ranked fixes. **Score < 60 = BLOCKED** (does not yet read as human-designed); ≥ 75 passes.
 
-> **No API key needed by default** — the model executing this skill judges with its own vision (mode `agent`). An external vision model (`--mode api`, `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`) is only for fully-unsupervised pipelines. This step is intentionally separate from `check.py --final` — like the visual audit, it needs the rendered screenshots.
+> **No API key needed by default** — the model executing this skill judges with its own vision (mode `agent`). An external vision model (`--mode api`, `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`) is only for fully-unsupervised pipelines. **`check.py --final` enforces this step as gate 8: it will not authorize delivery unless a fresh `audit_report.json` and a passing aesthetic verdict both exist** — see Phase 5.
 
 ---
 
 ### Phase 5 — Automated Validation (mandatory before delivery)
 
-Run the final gate — it orchestrates all 5 validators in sequence:
+Run the final gate — it orchestrates all **8 gates** in sequence (7 static + 1 rendered visual/vision pass):
 
 | Step | Tool | What it checks |
 |---|---|---|
@@ -398,17 +398,23 @@ Run the final gate — it orchestrates all 5 validators in sequence:
 | 5 | `audit_accessibility.py` | WCAG 2.1 AA — img alt, button type, input labels, div onclick, html lang, viewport meta |
 | 6 | `audit_style_uniqueness.py` | Generic AI template detection — score must be ≤ 65 |
 | 7 | `audit_beauty.py` | Positive craft floor — Beauty Score must be ≥ 50 (blocks clean-but-soulless designs) |
+| 8 | `visual_audit.py` + `aesthetic_review.py` | **Rendered pass (mandatory):** requires a fresh `audit_report.json` with a clean rendered DOM **and** a passing aesthetic verdict (`reads_as: human`, score ≥ pass). Blocks delivery if missing, stale, or below floor. |
 
 ```bash
-python3 scripts/check.py --final --code ./src
-python3 scripts/check.py --final --code ./src --verbose   # shows fix_instructions on failure
+python3 scripts/check.py --final --code ./src --url http://localhost:3000
+python3 scripts/check.py --final --code ./src --url http://localhost:3000 --verbose   # shows fix_instructions on failure
 ```
 
-> **Visual audit (separate — requires a running server):** `visual_audit.py` is NOT part of `check.py --final` because it needs a live URL. Run it manually after `check.py --final` passes:
+> **The rendered visual + vision pass is gate 8 of `check.py --final` and cannot be bypassed.** `visual_audit.py` still runs separately (it needs a live server) to PRODUCE the evidence; `check.py --final` then REQUIRES it:
 > ```bash
+> # 1. render the evidence (live server, Playwright)
 > python3 scripts/visual_audit.py --url http://localhost:3000 --output ./audit-results
+> # 2. open the screenshots with your own vision, write the verdict to ./audit-results/aesthetic-verdict.json
+> python3 scripts/aesthetic_review.py --screenshots ./audit-results --archetype "§6 Technical"
+> # 3. the final gate now blocks unless both artifacts exist, are fresh, and pass:
+> python3 scripts/check.py --final --code ./src --url http://localhost:3000
 > ```
-> It captures 4 breakpoints (375/768/1280/1920px) and audits the real rendered DOM for spacing, fonts, status badges, and A-group slop that regex cannot catch in static files.
+> Gate 8 fails (no DELIVERY AUTHORIZED) if `audit_report.json` is missing, the rendered DOM still contains slop, the report is **stale** (any source file changed after the last render), or the aesthetic verdict is missing / below floor. Default verdict path: `<audit-output>/aesthetic-verdict.json` (override with `--verdict`).
 
 If the gate fails → **do not patch files manually**. Go to Phase 5b below.
 

@@ -101,7 +101,7 @@ python3 scripts/check.py --final --code ./src
 
 ---
 
-## Mobile & vision (beyond the 7 web gates)
+## Mobile & vision (incl. the mandatory rendered gate 8)
 
 | Tool | What it does |
 |---|---|
@@ -110,6 +110,8 @@ python3 scripts/check.py --final --code ./src
 | `visual_audit.py` | Playwright capture at 4 breakpoints, feeding the vision review. |
 
 → References: [`references/beauty-gestures.md`](references/beauty-gestures.md) · [`references/mobile-beauty.md`](references/mobile-beauty.md)
+
+> **The rendered visual + vision pass is now gate 8 of `check.py --final` and cannot be bypassed.** Run `visual_audit.py` against your live server to produce `audit-results/audit_report.json`, write the aesthetic verdict to `audit-results/aesthetic-verdict.json`, then run `check.py --final --code ./src --url http://localhost:PORT`. Delivery is blocked unless both artifacts exist, are fresh (re-render after any source change), and pass.
 
 ---
 
