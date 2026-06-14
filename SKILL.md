@@ -1,6 +1,6 @@
 ---
 name: web-design-enhancer
-description: Validator and enforcer of the DESIGN.md contract. Pillar 3 of the design ecosystem alongside getdesign.md (real visual references) and UI/UX Pro Max (sectoral design intelligence). Eliminates AI visual improvisation through 4 automated validation scripts, GSAP, and a Playwright audit on 4 breakpoints.
+description: Validator and enforcer of the DESIGN.md contract. Pillar 3 of the design ecosystem — the two upstream pillars (getdesign.md real visual references + UI/UX Pro Max sectoral design intelligence) are MANDATORY before any code. Eliminates AI visual improvisation through 8 sequential validation gates (incl. a non-bypassable rendered visual + vision pass), GSAP, and a Playwright audit on 4 breakpoints.
 ---
 
 # Web Design Enhancer
@@ -38,6 +38,23 @@ This skill is the **validator and enforcer** of the design ecosystem. It guarant
 ### ⚡ Phase 0 — Design Anchoring (mandatory, before any code)
 
 **Never create a DESIGN.md from scratch. Feed its creation from the two sources.**
+
+> ## 🚫 HARD STOP — run BOTH upstream pillars before any DESIGN.md or code
+>
+> This skill (Pillar 3) only **validates**; it does **not** invent a look. Picking an archetype from `references/design-archetypes.md` is **NOT** a substitute for the pillars. Before writing a single line of DESIGN.md or code you MUST produce both artifacts:
+>
+> 1. **Pillar 2 — UI/UX Pro Max** (sectoral intelligence, built into this skill):
+>    ```bash
+>    python3 scripts/search.py "<product description>" --design-system -p "<Project>" --save
+>    ```
+>    → produces `design-system-output*.md` (page pattern, semantic palette, typography, sectoral antipatterns).
+> 2. **Pillar 1 — getdesign.md** (real visual reference, external npx tool, needs Node):
+>    ```bash
+>    npx getdesign@latest add <brand>
+>    ```
+>    → produces a `getdesign-*.md` / `brand-*.md` reference at the project root. Verify the output filename matches that glob (rename it if getdesign writes plain `DESIGN.md`, so it is not confused with your project contract).
+>
+> **`check.py --gate 0` blocks** if either artifact (or the `## 0. Sources Phase 0` section in DESIGN.md) is missing. **Do not proceed to Phase 1 until `python3 scripts/check.py --gate 0` is green.** Skipping the pillars yields a design that is "technically correct but generic" — exactly the failure this ecosystem exists to prevent.
 
 #### 0a. Visual reference — getdesign.md
 
