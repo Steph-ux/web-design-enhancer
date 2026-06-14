@@ -365,6 +365,21 @@ Inspects on **4 breakpoints** (375 / 768 / 1280 / 1920px). Fix immediately if:
 
 Validation loop: fix → rerun audit → repeat until zero defect.
 
+#### Aesthetic review — the "is it beautiful?" judgment (vision model)
+
+Mechanical audits cannot answer "does this look designed by a human?". After the visual audit is clean, submit the rendered screenshots to a vision model for a scored, structured verdict:
+
+```bash
+python3 scripts/aesthetic_review.py --screenshots ./audit-results --archetype "§3 Luxury"
+# providers: --provider openai (default, gpt-4o) | --provider anthropic (claude-3-5-sonnet)
+# any OpenAI-compatible endpoint: --base-url https://your-endpoint
+# assemble the request without calling the API: --dry-run
+```
+
+It scores 7 dimensions an eye judges in the first seconds (first impression, hierarchy, whitespace/balance, typography, colour harmony, finish, **human-vs-AI tell**), returns an `overall_score`, a `reads_as: human|ai` flag, and ranked fixes. **Score < 60 = BLOCKED** (does not yet read as human-designed); ≥ 75 passes.
+
+> Requires an API key in the environment on the machine running the skill: `OPENAI_API_KEY` (default) or `ANTHROPIC_API_KEY`. This step is intentionally separate from `check.py --final` — like the visual audit, it needs the rendered screenshots.
+
 ---
 
 ### Phase 5 — Automated Validation (mandatory before delivery)
@@ -457,6 +472,7 @@ The output is a JSON object with a `violations` array. Each entry contains:
 | `scripts/audit_spacing.py` | 8px grid audit on CSS files |
 | `scripts/audit_accessibility.py` | WCAG 2.1 AA — img alt, button type, input labels, div onclick, html lang, title, empty links |
 | `scripts/visual_audit.py` | Playwright visual audit — 4 breakpoints, real DOM, rendered slop detection |
+| `scripts/aesthetic_review.py` | Vision-model aesthetic judgment of the rendered screenshots — scores beauty/human-vs-AI, blocks below floor (needs OPENAI_API_KEY or ANTHROPIC_API_KEY) |
 | `scripts/diff_design_vs_code.py` | Diff DESIGN.md ↔ code (colors, fonts, animations) |
 | `scripts/audit_beauty.py` | Beauty Score (0-100) — rewards type-scale contrast, hierarchy, signature colour, spacing rhythm, finition. Blocks below 50 |
 | `.slop-ignore` | Whitelist against false positives for detect_ai_slop.py |

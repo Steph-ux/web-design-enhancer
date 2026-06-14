@@ -22,3 +22,8 @@ playwright>=1.44.0
 
 # --- Dev / Testing ---
 pytest>=8.2.0
+
+# aesthetic_review.py uses only the Python stdlib (urllib) for the vision API call.
+# It needs an API key in the environment at runtime:
+#   OPENAI_API_KEY     (provider=openai, default)
+#   ANTHROPIC_API_KEY  (provider=anthropic)

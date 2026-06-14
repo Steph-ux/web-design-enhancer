@@ -1,0 +1,347 @@
+#!/usr/bin/env python3
+"""
+aesthetic_review.py — vision-model aesthetic judgment of rendered screenshots.
+
+The Beauty Score (audit_beauty.py) measures craft markers from source code.
+But "is this magnificent at a glance?" is a question only an eye can answer.
+This script submits the rendered screenshots (from visual_audit.py) to a
+vision model and gets back a scored, structured verdict — the closest thing
+to a human designer looking at the page.
+
+It is the Phase 4 counterpart to visual_audit.py: that one catches mechanical
+slop in the DOM; this one judges whether the result actually looks designed
+by a human.
+
+Two providers, OpenAI-compatible (default) and Anthropic. The model and base
+URL are configurable, so any OpenAI-compatible endpoint works.
+
+Credentials are read from the environment on the machine running the skill:
+  OPENAI_API_KEY      (provider=openai, default)
+  ANTHROPIC_API_KEY   (provider=anthropic)
+
+Usage:
+    # after visual_audit.py has produced ./audit-results/*.png
+    python3 scripts/aesthetic_review.py --screenshots ./audit-results --archetype "§3 Luxury"
+    python3 scripts/aesthetic_review.py --screenshots ./audit-results --json
+    python3 scripts/aesthetic_review.py --screenshots ./audit-results --dry-run   # assemble request, no API call
+
+Exit codes:
+  0 — overall_score ≥ pass threshold (looks designed)
+  1 — floor ≤ score < pass (acceptable, polish)
+  2 — score < floor (BLOCKED — does not look human-designed)
+"""
+
+import argparse
+import base64
+import json
+import os
+import sys
+from pathlib import Path
+from typing import Any
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+
+# ── ANSI helpers ─────────────────────────────────────────────────────────────
+
+def _ansi(code: str) -> str:
+    return f"\033[{code}m" if sys.stdout.isatty() else ""
+
+RESET, BOLD = _ansi("0"), _ansi("1")
+RED, YELLOW, GREEN, CYAN, DIM = _ansi("31"), _ansi("33"), _ansi("32"), _ansi("36"), _ansi("2")
+
+
+# ── The rubric ───────────────────────────────────────────────────────────────
+# Seven dimensions a human designer judges in the first seconds. Each maps loosely
+# to the code-level Beauty Score (D1-D5) but adds what only the eye catches.
+
+RUBRIC_DIMENSIONS = [
+    ("first_impression", "Magnificence at a glance — does it look professionally designed?"),
+    ("visual_hierarchy", "Does the eye land where it should? Clear focal point and flow."),
+    ("whitespace_balance", "Composition, breathing room, optical alignment, balance."),
+    ("typography_craft", "Scale contrast, pairing, rhythm — as rendered."),
+    ("colour_harmony", "Palette cohesion and one intentional, owned accent."),
+    ("finish_consistency", "Alignment, spacing regularity, no wonky geometry or orphans."),
+    ("human_vs_ai", "Does it read as hand-designed, or as generic AI template output?"),
+]
+
+_RUBRIC_TEXT = "\n".join(f"  - {k}: {desc}" for k, desc in RUBRIC_DIMENSIONS)
+
+
+def build_prompt(archetype: str | None, breakpoints: list[str]) -> str:
+    """Assemble the instruction sent alongside the screenshots."""
+    arch = (
+        f"The design committed to archetype: {archetype}. Judge it against that intent "
+        f"(e.g. a Luxury archetype SHOULD be restrained — do not penalise it for being quiet).\n"
+        if archetype else
+        "No archetype was declared. Judge it as a general professional web design.\n"
+    )
+    bp = ", ".join(breakpoints)
+    return (
+        "You are a senior product designer doing a brutally honest design review.\n"
+        "You are shown the SAME page rendered at these breakpoints: " + bp + ".\n\n"
+        + arch +
+        "\nGoal of the project: the page must look magnificent and indistinguishable from "
+        "the work of a skilled human designer — not generic AI output.\n\n"
+        "Score each dimension 0-100 (0 = amateur/AI-slop, 100 = award-worthy):\n"
+        + _RUBRIC_TEXT +
+        "\n\nThen give an overall_score (0-100) as your honest holistic judgment (NOT a mean), "
+        "a one-line verdict, whether it reads_as \"human\" or \"ai\", and up to 5 concrete, "
+        "high-leverage fixes ranked by impact. Be specific and reference what you see.\n\n"
+        "Respond with ONLY a JSON object, no prose, in exactly this shape:\n"
+        "{\n"
+        '  "overall_score": <int>,\n'
+        '  "verdict": "<one line>",\n'
+        '  "reads_as": "human" | "ai",\n'
+        '  "dimensions": { "first_impression": {"score": <int>, "note": "<str>"}, ... all 7 ... },\n'
+        '  "top_fixes": ["<fix>", ...]\n'
+        "}"
+    )
+
+
+# ── Image handling ───────────────────────────────────────────────────────────
+
+def collect_screenshots(screenshots_dir: Path) -> list[tuple[str, Path]]:
+    """Return [(breakpoint_name, path)] for PNGs in the directory, stable order."""
+    if not screenshots_dir.is_dir():
+        raise FileNotFoundError(f"screenshots dir not found: {screenshots_dir}")
+    pngs = sorted(screenshots_dir.glob("*.png"))
+    if not pngs:
+        raise FileNotFoundError(f"no .png screenshots in {screenshots_dir}")
+    return [(p.stem, p) for p in pngs]
+
+
+def encode_image(path: Path) -> str:
+    return base64.b64encode(path.read_bytes()).decode("ascii")
+
+
+# ── Request assembly (provider-specific, no network here — testable) ──────────
+
+def build_openai_payload(model: str, prompt: str, shots: list[tuple[str, Path]]) -> dict[str, Any]:
+    content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
+    for name, path in shots:
+        content.append({"type": "text", "text": f"[breakpoint: {name}]"})
+        content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/png;base64,{encode_image(path)}"},
+        })
+    return {
+        "model": model,
+        "messages": [{"role": "user", "content": content}],
+        "max_tokens": 1500,
+        "temperature": 0.2,
+    }
+
+
+def build_anthropic_payload(model: str, prompt: str, shots: list[tuple[str, Path]]) -> dict[str, Any]:
+    content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
+    for name, path in shots:
+        content.append({"type": "text", "text": f"[breakpoint: {name}]"})
+        content.append({
+            "type": "image",
+            "source": {"type": "base64", "media_type": "image/png", "data": encode_image(path)},
+        })
+    return {
+        "model": model,
+        "max_tokens": 1500,
+        "temperature": 0.2,
+        "messages": [{"role": "user", "content": content}],
+    }
+
+
+# ── Response parsing ─────────────────────────────────────────────────────────
+
+def extract_text_openai(resp: dict[str, Any]) -> str:
+    return resp["choices"][0]["message"]["content"]
+
+
+def extract_text_anthropic(resp: dict[str, Any]) -> str:
+    parts = resp.get("content", [])
+    return "".join(p.get("text", "") for p in parts if p.get("type") == "text")
+
+
+def parse_verdict(text: str) -> dict[str, Any]:
+    """Pull the JSON object out of a model reply, tolerating code fences / prose."""
+    t = text.strip()
+    if t.startswith("```"):
+        t = t.split("```", 2)[1]
+        if t.lstrip().lower().startswith("json"):
+            t = t.lstrip()[4:]
+    start, end = t.find("{"), t.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        raise ValueError("no JSON object found in model response")
+    data = json.loads(t[start:end + 1])
+    if "overall_score" not in data:
+        raise ValueError("model response missing 'overall_score'")
+    data["overall_score"] = int(data["overall_score"])
+    return data
+
+
+# ── Network call (only place that touches the API) ────────────────────────────
+
+def call_model(provider: str, base_url: str, model: str, payload: dict[str, Any]) -> dict[str, Any]:
+    import urllib.request
+    import urllib.error
+
+    if provider == "anthropic":
+        url = base_url.rstrip("/") + "/v1/messages"
+        key = os.environ.get("ANTHROPIC_API_KEY")
+        if not key:
+            raise RuntimeError("ANTHROPIC_API_KEY not set in environment")
+        headers = {
+            "x-api-key": key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        }
+    else:  # openai-compatible
+        url = base_url.rstrip("/") + "/v1/chat/completions"
+        key = os.environ.get("OPENAI_API_KEY")
+        if not key:
+            raise RuntimeError("OPENAI_API_KEY not set in environment")
+        headers = {"Authorization": f"Bearer {key}", "content-type": "application/json"}
+
+    req = urllib.request.Request(url, data=json.dumps(payload).encode(), headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"API error {e.code}: {e.read().decode('utf-8', 'replace')[:500]}")
+
+
+# ── Reporting ────────────────────────────────────────────────────────────────
+
+def score_colour(score: int, floor: int, passing: int) -> str:
+    if score >= passing:
+        return GREEN
+    if score >= floor:
+        return YELLOW
+    return RED
+
+
+def print_report(verdict: dict[str, Any], floor: int, passing: int) -> None:
+    s = verdict["overall_score"]
+    colour = score_colour(s, floor, passing)
+    reads = verdict.get("reads_as", "?")
+    sep = "=" * 52
+    print(f"\n{BOLD}{sep}{RESET}")
+    print("  AESTHETIC REVIEW — vision judgment")
+    print(f"{BOLD}{sep}{RESET}\n")
+    print(f"  Overall: {colour}{BOLD}{s}/100{RESET}   reads as: "
+          f"{(GREEN if reads=='human' else RED)}{reads.upper()}{RESET}")
+    print(f"  {DIM}{verdict.get('verdict','')}{RESET}\n")
+
+    dims = verdict.get("dimensions", {})
+    for key, desc in RUBRIC_DIMENSIONS:
+        d = dims.get(key, {})
+        sc = d.get("score", "?")
+        mark = score_colour(sc, floor, passing) if isinstance(sc, int) else DIM
+        print(f"  {BOLD}{key:<20}{RESET} {mark}{str(sc):>3}{RESET}  {DIM}{d.get('note','')[:70]}{RESET}")
+    print()
+
+    fixes = verdict.get("top_fixes", [])
+    if fixes:
+        print(f"  {YELLOW}Top fixes (ranked by impact):{RESET}")
+        for i, f in enumerate(fixes, 1):
+            print(f"   {i}. {f}")
+        print()
+
+    print(f"{BOLD}{sep}{RESET}")
+    if s < floor:
+        print(f"  {RED}{BOLD}❌ BLOCKED{RESET} — {s}/100 below floor {floor}. "
+              f"Does not yet read as human-designed.")
+    elif s < passing:
+        print(f"  {YELLOW}{BOLD}⚠️  POLISH{RESET} — {s}/100 below pass {passing}. "
+              f"Apply the fixes above.")
+    else:
+        print(f"  {GREEN}{BOLD}✅ PASSED{RESET} — {s}/100. Reads as deliberate, human design.")
+    print(f"{BOLD}{sep}{RESET}\n")
+
+
+def exit_code_for(score: int, floor: int, passing: int) -> int:
+    if score < floor:
+        return 2
+    if score < passing:
+        return 1
+    return 0
+
+
+# ── CLI ──────────────────────────────────────────────────────────────────────
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="aesthetic_review",
+        description="Vision-model aesthetic judgment of rendered screenshots.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument("--screenshots", type=Path, default=Path("./audit-results"),
+                   help="Directory of PNG screenshots (from visual_audit.py)")
+    p.add_argument("--archetype", type=str, default=None,
+                   help="Declared archetype, so the review judges against intent")
+    p.add_argument("--provider", choices=["openai", "anthropic"], default="openai")
+    p.add_argument("--model", type=str, default=None,
+                   help="Vision model (default: gpt-4o for openai, claude-3-5-sonnet-latest for anthropic)")
+    p.add_argument("--base-url", type=str, default="https://api.openai.com",
+                   help="API base URL (any OpenAI-compatible endpoint)")
+    p.add_argument("--threshold", nargs=2, type=int, metavar=("FLOOR", "PASS"), default=[60, 75])
+    p.add_argument("--json", action="store_true", dest="json_output")
+    p.add_argument("--dry-run", action="store_true",
+                   help="Assemble the request and print a summary; do NOT call the API")
+    return p
+
+
+def default_model(provider: str) -> str:
+    return "claude-3-5-sonnet-latest" if provider == "anthropic" else "gpt-4o"
+
+
+def main() -> int:
+    args = build_parser().parse_args()
+    floor, passing = args.threshold
+    if not (0 <= floor < passing <= 100):
+        print("Error: thresholds must satisfy 0 ≤ FLOOR < PASS ≤ 100.", file=sys.stderr)
+        return 2
+
+    model = args.model or default_model(args.provider)
+    try:
+        shots = collect_screenshots(args.screenshots)
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 2
+
+    breakpoints = [name for name, _ in shots]
+    prompt = build_prompt(args.archetype, breakpoints)
+    builder = build_anthropic_payload if args.provider == "anthropic" else build_openai_payload
+    payload = builder(model, prompt, shots)
+
+    if args.dry_run:
+        summary = {
+            "provider": args.provider,
+            "model": model,
+            "base_url": args.base_url,
+            "breakpoints": breakpoints,
+            "n_images": len(shots),
+            "prompt_chars": len(prompt),
+            "thresholds": {"floor": floor, "pass": passing},
+        }
+        print(json.dumps(summary, indent=2))
+        return 0
+
+    try:
+        raw = call_model(args.provider, args.base_url, model, payload)
+        text = extract_text_anthropic(raw) if args.provider == "anthropic" else extract_text_openai(raw)
+        verdict = parse_verdict(text)
+    except Exception as e:  # noqa: BLE001
+        print(f"Error: {e}", file=sys.stderr)
+        return 2
+
+    if args.json_output:
+        verdict["exit_code"] = exit_code_for(verdict["overall_score"], floor, passing)
+        print(json.dumps(verdict, indent=2, ensure_ascii=False))
+    else:
+        print_report(verdict, floor, passing)
+
+    return exit_code_for(verdict["overall_score"], floor, passing)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
