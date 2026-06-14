@@ -377,6 +377,7 @@ Run the final gate — it orchestrates all 5 validators in sequence:
 | 4 | `diff_design_vs_code.py` | Colors, fonts, animations match between DESIGN.md and code |
 | 5 | `audit_accessibility.py` | WCAG 2.1 AA — img alt, button type, input labels, div onclick, html lang, viewport meta |
 | 6 | `audit_style_uniqueness.py` | Generic AI template detection — score must be ≤ 65 |
+| 7 | `audit_beauty.py` | Positive craft floor — Beauty Score must be ≥ 50 (blocks clean-but-soulless designs) |
 
 ```bash
 python3 scripts/check.py --final --code ./src
@@ -454,4 +455,5 @@ The output is a JSON object with a `violations` array. Each entry contains:
 | `scripts/audit_accessibility.py` | WCAG 2.1 AA — img alt, button type, input labels, div onclick, html lang, title, empty links |
 | `scripts/visual_audit.py` | Playwright visual audit — 4 breakpoints, real DOM, rendered slop detection |
 | `scripts/diff_design_vs_code.py` | Diff DESIGN.md ↔ code (colors, fonts, animations) |
+| `scripts/audit_beauty.py` | Beauty Score (0-100) — rewards type-scale contrast, hierarchy, signature colour, spacing rhythm, finition. Blocks below 50 |
 | `.slop-ignore` | Whitelist against false positives for detect_ai_slop.py |
