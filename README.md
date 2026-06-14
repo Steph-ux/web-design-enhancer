@@ -79,7 +79,7 @@ Here is the result generated with this skill for a football club (zero generic A
 
 ---
 
-## The 6 automatic validation gates
+## The 7 automatic validation gates
 
 Before each delivery, the AI runs:
 
@@ -95,6 +95,7 @@ python3 scripts/check.py --final --code ./src
 | 4 | `diff_design_vs_code.py` | Colors/fonts/animations that drift from DESIGN.md |
 | 5 | `audit_accessibility.py` | `<img>` without alt, `<button>` without type, inputs without labels, missing viewport meta... |
 | 6 | `audit_style_uniqueness.py` | **Score > 65/100 = delivery blocked** — design too close to the generic template |
+| 7 | `audit_beauty.py` | **Score < 50/100 = delivery blocked** — design is technically clean but flat and soulless (the positive mirror of gate 6) |
 
 ---
 
@@ -129,6 +130,7 @@ web-design-enhancer-pro/
 │   ├── audit_accessibility.py        # WCAG 2.1 AA
 │   ├── audit_spacing.py              # 8px grid
 │   ├── audit_style_uniqueness.py     # Generic AI Template detector (T1–T12)
+│   ├── audit_beauty.py               # Beauty Score — positive craft floor (D1–D5)
 │   ├── validate_design.py            # DESIGN.md contract validation
 │   ├── diff_design_vs_code.py        # Drift code vs DESIGN.md
 │   └── visual_audit.py               # Playwright 4 breakpoints audit
@@ -150,5 +152,5 @@ web-design-enhancer-pro/
 
 ```bash
 py -m pytest tests/ -v
-# 125 tests — should display 125 passed
+# 149 tests — should display 149 passed
 ```

@@ -402,7 +402,7 @@ def check_final(code_path=None, verbose=False):
     errors = []
 
     # 1. detect_ai_slop.py
-    print(f"\n{CYAN}[1/6] Detecting AI antipatterns (HTML + CSS + JSX + code quality)...{RESET}")
+    print(f"\n{CYAN}[1/7] Detecting AI antipatterns (HTML + CSS + JSX + code quality)...{RESET}")
     slop_args = [sys.executable, str(SCRIPTS_DIR / "detect_ai_slop.py"), "--design", "DESIGN.md"]
     if code_path:
         slop_args += ["--code", code_path]
@@ -424,7 +424,7 @@ def check_final(code_path=None, verbose=False):
                 print(rj.stdout)
 
     # 2. audit_spacing.py
-    print(f"\n{CYAN}[2/6] 8px grid audit...{RESET}")
+    print(f"\n{CYAN}[2/7] 8px grid audit...{RESET}")
     spacing_path = code_path or "."
     r = subprocess.run(
         [sys.executable, str(SCRIPTS_DIR / "audit_spacing.py"), "--path", spacing_path],
@@ -435,7 +435,7 @@ def check_final(code_path=None, verbose=False):
         errors.append("audit_spacing.py — 8px grid violations")
 
     # 3. validate_design.py (final pass)
-    print(f"\n{CYAN}[3/6] Final DESIGN.md validation...{RESET}")
+    print(f"\n{CYAN}[3/7] Final DESIGN.md validation...{RESET}")
     r = subprocess.run(
         [sys.executable, str(SCRIPTS_DIR / "validate_design.py"), "DESIGN.md"],
         capture_output=True, text=True
@@ -445,7 +445,7 @@ def check_final(code_path=None, verbose=False):
         errors.append("validate_design.py — DESIGN.md contract not respected")
 
     # 4. diff_design_vs_code.py
-    print(f"\n{CYAN}[4/6] DESIGN.md <-> code diff...{RESET}")
+    print(f"\n{CYAN}[4/7] DESIGN.md <-> code diff...{RESET}")
     if code_path:
         r = subprocess.run(
             [sys.executable, str(SCRIPTS_DIR / "diff_design_vs_code.py"), "DESIGN.md", "--code", code_path],
@@ -458,7 +458,7 @@ def check_final(code_path=None, verbose=False):
         warn("diff_design_vs_code.py skipped (no --code provided)")
 
     # 5. audit_accessibility.py
-    print(f"\n{CYAN}[5/6] WCAG 2.1 AA accessibility audit...{RESET}")
+    print(f"\n{CYAN}[5/7] WCAG 2.1 AA accessibility audit...{RESET}")
     a11y_script = SCRIPTS_DIR / "audit_accessibility.py"
     if a11y_script.exists():
         a11y_args = [sys.executable, str(a11y_script)]
@@ -476,7 +476,7 @@ def check_final(code_path=None, verbose=False):
         warn("audit_accessibility.py not found — skipping accessibility check")
 
     # 6. audit_style_uniqueness.py
-    print(f"\n{CYAN}[6/6] Style uniqueness audit (Generic AI Template detector)...{RESET}")
+    print(f"\n{CYAN}[6/7] Style uniqueness audit (Generic AI Template detector)...{RESET}")
     uniqueness_script = SCRIPTS_DIR / "audit_style_uniqueness.py"
     if uniqueness_script.exists():
         uniq_args = [sys.executable, str(uniqueness_script), "--path", code_path or "."]
@@ -493,6 +493,26 @@ def check_final(code_path=None, verbose=False):
             warn("audit_style_uniqueness.py — WARNING: template score elevated. Fix flagged signals.")
     else:
         warn("audit_style_uniqueness.py not found — skipping style uniqueness check")
+
+    # 7. audit_beauty.py — positive craft floor (blocks soulless-but-clean designs)
+    print(f"\n{CYAN}[7/7] Beauty audit (craft & finish — blocks clean-but-soulless)...{RESET}")
+    beauty_script = SCRIPTS_DIR / "audit_beauty.py"
+    if beauty_script.exists():
+        beauty_args = [sys.executable, str(beauty_script), "--path", code_path or "."]
+        if verbose:
+            beauty_args += ["--json"]
+        r = subprocess.run(beauty_args, capture_output=True, text=True)
+        print(r.stdout)
+        if r.returncode == 2:
+            errors.append(
+                "audit_beauty.py — BLOCKED: beauty score below floor (50/100). "
+                "Design is technically clean but soulless. Raise the craft before delivery — "
+                "see references/design-archetypes.md for signature gestures per archetype."
+            )
+        elif r.returncode == 1:
+            warn("audit_beauty.py — NEEDS POLISH: beauty score below pass (70/100). Address flagged weaknesses.")
+    else:
+        warn("audit_beauty.py not found — skipping beauty check")
 
     _print_result(errors, "FINAL GATE")
     if not errors:
@@ -519,7 +539,7 @@ def _print_delivery_ok():
     print(f"""
 {GREEN}{BOLD}+----------------------------------------------+
 |  [OK]  DELIVERY AUTHORIZED                    |
-|  All 6 gates green. Zero AI slop detected.     |
+|  All 7 gates green. Zero AI slop detected.     |
 |  Design is unique — not a Generic AI Template. |
 +----------------------------------------------+{RESET}
 """)
