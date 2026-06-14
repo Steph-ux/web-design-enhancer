@@ -38,7 +38,7 @@ def _passing_verdict(audit_dir):
         "dimensions": {k: {"score": 85, "note": "ok"} for k in [
             "first_impression", "typography", "colour", "spacing",
             "hierarchy", "polish", "human_signal"]},
-        "top_fixes": [],
+        "top_fixes": ["Balance the empty right half of the hero", "Give project cards a signature accent"],
     }))
 
 

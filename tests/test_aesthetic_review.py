@@ -173,7 +173,7 @@ class TestAgentMode:
         d = _shots_dir(("desktop",))
         script = str(Path(__file__).parent.parent / "scripts" / "aesthetic_review.py")
         vfile = Path(tempfile.mkdtemp()) / "verdict.json"
-        vfile.write_text(_json.dumps({"overall_score": 82, "verdict": "clean", "reads_as": "human"}))
+        vfile.write_text(_json.dumps({"overall_score": 82, "verdict": "clean", "reads_as": "human", "top_fixes": ["Tighten hero spacing on mobile", "Add a signature accent to cards"]}))
         r = subprocess.run([sys.executable, script, "--verdict", str(vfile), "--json"],
                            capture_output=True, text=True)
         assert r.returncode == 0  # 82 >= pass 75

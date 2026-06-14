@@ -90,9 +90,18 @@ def build_prompt(archetype: str | None, breakpoints: list[str]) -> str:
         "the work of a skilled human designer — not generic AI output.\n\n"
         "Score each dimension 0-100 (0 = amateur/AI-slop, 100 = award-worthy):\n"
         + _RUBRIC_TEXT +
-        "\n\nThen give an overall_score (0-100) as your honest holistic judgment (NOT a mean), "
-        "a one-line verdict, whether it reads_as \"human\" or \"ai\", and up to 5 concrete, "
-        "high-leverage fixes ranked by impact. Be specific and reference what you see.\n\n"
+        "\n\nCalibration anchors — score like a skeptical senior reviewer, not a cheerleader:\n"
+        "  90-100  award-worthy, would headline a design gallery — RARE.\n"
+        "  80-89   strong, polished, clearly human-crafted, only minor nits.\n"
+        "  70-79   good and shippable, but with visible weaknesses.\n"
+        "  60-69   acceptable but generic in places; needs real work.\n"
+        "  below 60  reads as AI-slop or amateur.\n"
+        "Most competent first attempts land 72-85. Reserve 90+ for genuinely exceptional work and justify why.\n"
+        "Uniform near-perfect scores (everything > 95) are treated as un-calibrated and automatically penalised.\n\n"
+        "Then give an overall_score (0-100) as your honest holistic judgment (NOT a mean), "
+        "a one-line verdict, whether it reads_as \"human\" or \"ai\", and the concrete, high-leverage "
+        "fixes ranked by impact. You MUST list AT LEAST 2 specific fixes — even excellent designs have them; "
+        "reference exactly what you see.\n\n"
         "Respond with ONLY a JSON object, no prose, in exactly this shape:\n"
         "{\n"
         '  "overall_score": <int>,\n'
@@ -223,8 +232,9 @@ def score_colour(score: int, floor: int, passing: int) -> str:
     return RED
 
 
-def print_report(verdict: dict[str, Any], floor: int, passing: int) -> None:
-    s = verdict["overall_score"]
+def print_report(verdict: dict[str, Any], floor: int, passing: int, effective: int | None = None, flags: list | None = None) -> None:
+    raw = verdict["overall_score"]
+    s = effective if effective is not None else raw
     colour = score_colour(s, floor, passing)
     reads = verdict.get("reads_as", "?")
     sep = "=" * 52
@@ -234,6 +244,12 @@ def print_report(verdict: dict[str, Any], floor: int, passing: int) -> None:
     print(f"  Overall: {colour}{BOLD}{s}/100{RESET}   reads as: "
           f"{(GREEN if reads=='human' else RED)}{reads.upper()}{RESET}")
     print(f"  {DIM}{verdict.get('verdict','')}{RESET}\n")
+    if effective is not None and effective != raw:
+        print(f"  {DIM}(raw self-score {raw} -> calibrated {s}){RESET}")
+    for _fl in (flags or []):
+        print(f"  {YELLOW}⚠ {_fl}{RESET}")
+    if flags:
+        print()
 
     dims = verdict.get("dimensions", {})
     for key, desc in RUBRIC_DIMENSIONS:
@@ -268,6 +284,41 @@ def exit_code_for(score: int, floor: int, passing: int) -> int:
     if score < passing:
         return 1
     return 0
+
+
+def calibrate_verdict(verdict: dict[str, Any], floor: int, passing: int) -> tuple[int, list]:
+    """Anti-inflation calibration for a vision verdict.
+
+    The agent frequently grades its OWN work, so a self-flattered near-perfect
+    verdict is discounted and a verdict without concrete critiques is treated as
+    un-calibrated. Returns (effective_score, flags).
+    """
+    raw = int(verdict.get("overall_score", 0))
+    dims = verdict.get("dimensions", {}) or {}
+    dim_scores = [d.get("score") for d in dims.values()
+                  if isinstance(d, dict) and isinstance(d.get("score"), int)]
+    fixes = [f for f in (verdict.get("top_fixes") or [])
+             if isinstance(f, str) and len(f.strip()) >= 8]
+    flags: list = []
+    effective = raw
+
+    uniform_perfect = raw >= 95 or (len(dim_scores) >= 5 and min(dim_scores) >= 95)
+    if uniform_perfect:
+        penalty = 18 if len(fixes) < 3 else 10
+        effective = max(0, raw - penalty)
+        flags.append(
+            f"INFLATION GUARD - near-perfect scores (overall {raw}, {len(fixes)} concrete "
+            f"fix(es)) match the self-flattery pattern. Applied -{penalty} calibration "
+            f"penalty -> effective {effective}/100."
+        )
+
+    if len(fixes) < 2:
+        flags.append(
+            "UNCALIBRATED - fewer than 2 concrete critiques. No shippable design is flawless: "
+            "re-review honestly and list at least 2 specific, high-leverage fixes."
+        )
+
+    return effective, flags
 
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
@@ -319,12 +370,18 @@ def main() -> int:
         except (OSError, ValueError) as e:
             print(f"Error reading verdict: {e}", file=sys.stderr)
             return 2
+        effective, flags = calibrate_verdict(verdict, floor, passing)
+        uncalibrated = any(f.startswith("UNCALIBRATED") for f in flags)
+        code = 2 if uncalibrated else exit_code_for(effective, floor, passing)
         if args.json_output:
-            verdict["exit_code"] = exit_code_for(verdict["overall_score"], floor, passing)
+            verdict["raw_score"] = verdict["overall_score"]
+            verdict["effective_score"] = effective
+            verdict["calibration_flags"] = flags
+            verdict["exit_code"] = code
             print(json.dumps(verdict, indent=2, ensure_ascii=False))
         else:
-            print_report(verdict, floor, passing)
-        return exit_code_for(verdict["overall_score"], floor, passing)
+            print_report(verdict, floor, passing, effective=effective, flags=flags)
+        return code
 
     try:
         shots = collect_screenshots(args.screenshots)
@@ -375,12 +432,18 @@ def main() -> int:
     except Exception as e:  # noqa: BLE001
         print(f"Error: {e}", file=sys.stderr)
         return 2
+    effective, flags = calibrate_verdict(verdict, floor, passing)
+    uncalibrated = any(f.startswith("UNCALIBRATED") for f in flags)
+    code = 2 if uncalibrated else exit_code_for(effective, floor, passing)
     if args.json_output:
-        verdict["exit_code"] = exit_code_for(verdict["overall_score"], floor, passing)
+        verdict["raw_score"] = verdict["overall_score"]
+        verdict["effective_score"] = effective
+        verdict["calibration_flags"] = flags
+        verdict["exit_code"] = code
         print(json.dumps(verdict, indent=2, ensure_ascii=False))
     else:
-        print_report(verdict, floor, passing)
-    return exit_code_for(verdict["overall_score"], floor, passing)
+        print_report(verdict, floor, passing, effective=effective, flags=flags)
+    return code
 
 
 if __name__ == "__main__":
