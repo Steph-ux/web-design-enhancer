@@ -103,13 +103,13 @@ class AISloPDetector:
         (r"(?:starCount|star_count|stargazers_count).*?\d+",
          "Hardcoded GitHub star counter - static data not tied to any API"),
         (r">\s*[A-Z][A-Z ]{6,}\s*:\s*<",
-         "ALL_CAPS label inside a card e.g. '>COMMANDE INSTALLATION:<' - not documented in DESIGN.md"),
+         "ALL_CAPS label inside a card e.g. '>COMMANDE INSTALLATION:<' - not documented in DESIGN.md", 0),
         # SYS_ACTIVE explicitly added — was missing, caused the FloraLink badge to pass
         (r"(?<![.\w/])\b(?:SYS_ACTIVE|SYS_INFO|SYS_STATUS|SYS_NODE|SYS_PING|SYS_ONLINE|SYS_RUNNING|SYS_UP|NODE_STATUS|API_HEALTH|API_LIVE)\b",
          "Injected system status badge — §0d explicitly forbidden (SYS_ACTIVE, SYS_STATUS, etc.)"),
         (r">\s*(?!(?:ID|URL|API|FAQ|CTA|OK|NEW|PRO|VIP|GDPR|RGPD|ALL|TOP|HOT|END|YES|NO|ON|OFF)\s*<)"
          r"[A-Z][A-Z\s]{5,30}<",
-         "ALL_CAPS button text in HTML - ALL CAPS on CTAs = AI pattern"),
+         "ALL_CAPS button text in HTML - ALL CAPS on CTAs = AI pattern", 0),
         (r"<(?:Star|StarIcon|StarFilled|FaStar|BsStar)\s*[^>]*/?>",
          "JSX star icon - decorative GitHub stars badge"),
         (r"radial-gradient\s*\([^)]{20,}\)",
@@ -143,7 +143,7 @@ class AISloPDetector:
         # ALL_CAPS isolated text in HTML inline elements (badge-like)
         # Matches: <span>SYS_ACTIVE</span>, <div>NODE_ONLINE</div>, etc.
         (r"<(?:span|div|p|label|small)[^>]*>\s*[A-Z][A-Z_]{3,}\s*</(?:span|div|p|label|small)>",
-         "ALL_CAPS text in HTML inline element — potential AI status badge"),
+         "ALL_CAPS text in HTML inline element — potential AI status badge", 0),
         # Typewriter effect in HTML attributes or script blocks
         (r'typed\.js|typewriter[-_]effect|data-typed',
          "Typewriter effect in HTML — dev portfolio cliché, forbidden in §0d"),
@@ -215,9 +215,7 @@ class AISloPDetector:
         (r'(?:class|className)=[^>]*(?:testimonial[-_]card|review[-_]card|quote[-_]card|testimonial[-_]item)',
          "Testimonial/review card class — hardcoded testimonials are AI fabrication (§0b)"),
 
-        # H1 — Missing <meta name="viewport"> (silent mobile breakage — AI frequently omits)
-        (r'<head[^>]*>(?:(?!</head>).){0,2000}(?!.*<meta[^>]*name=["\']viewport["\'])',
-         "<head> block may be missing <meta name='viewport'> — mobile layout will break silently. Add: <meta name='viewport' content='width=device-width, initial-scale=1'>"),
+        # (H1 viewport check moved to a dedicated, case-correct check in _detect_html_slop)
 
         # H2 — CSS hardcoded hex colors bypassing custom properties (B6)
         # Detected separately in CSS patterns, listed here for HTML inline styles
@@ -533,8 +531,10 @@ class AISloPDetector:
         Called for every .html file in the code directory.
         """
         ctx = file_path.name if file_path else "html"
-        for pattern, message in self.HTML_BADGE_PATTERNS:
-            if re.search(pattern, content, re.IGNORECASE):
+        for entry in self.HTML_BADGE_PATTERNS:
+            pattern, message = entry[0], entry[1]
+            flags = entry[2] if len(entry) > 2 else re.IGNORECASE
+            if re.search(pattern, content, flags):
                 self._add_issue(
                     "HTML_BADGE",
                     f"{message} [{ctx}]",
@@ -544,6 +544,20 @@ class AISloPDetector:
                     ),
                     severity=2  # Error-level: direct contract violation
                 )
+
+        # H1 — viewport meta: flag ONLY when <head> exists and no viewport meta is present.
+        # The previous single-regex approach false-positived even when the meta WAS present
+        # (variable-length negative lookahead). This now mirrors audit_accessibility.
+        if re.search(r"<head[\s>]", content, re.IGNORECASE) and not re.search(
+            r'<meta[^>]+name=["\']viewport["\']', content, re.IGNORECASE
+        ):
+            self._add_issue(
+                "HTML_BADGE",
+                f"<head> is missing <meta name='viewport'> — mobile layout will break silently. "
+                f"Add: <meta name='viewport' content='width=device-width, initial-scale=1'> [{ctx}]",
+                "Add the viewport meta tag inside <head>.",
+                severity=2,
+            )
 
     # -----------------------------------------------------------------------
     # CSS slop — scans .css files for forbidden animation/badge CSS rules
@@ -729,8 +743,10 @@ class AISloPDetector:
     # Pattern detectors (shared across JSX, HTML, DESIGN.md)
     # -----------------------------------------------------------------------
     def _detect_status_badges(self, content: str, file_path: Path = None):
-        for pattern, message in self.STATUS_BADGE_PATTERNS:
-            if re.search(pattern, content, re.IGNORECASE):
+        for entry in self.STATUS_BADGE_PATTERNS:
+            pattern, message = entry[0], entry[1]
+            flags = entry[2] if len(entry) > 2 else re.IGNORECASE
+            if re.search(pattern, content, flags):
                 issue = {
                     "type": "status_badge",
                     "severity": "warning",

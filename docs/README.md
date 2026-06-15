@@ -86,7 +86,10 @@ python3 scripts/visual_audit.py --url http://localhost:3000 --output ./audit-res
 ### Phase 5 — Final validation (blocking gate)
 ```bash
 python3 scripts/check.py --final --code ./src
-# Sequence: detect_ai_slop -> audit_spacing -> validate_design -> diff_design_vs_code
+# Sequence (7 gates): detect_ai_slop -> audit_spacing -> validate_design ->
+#   diff_design_vs_code -> audit_accessibility -> audit_style_uniqueness -> audit_beauty
+# Separate (need a running server / screenshots / native source):
+#   visual_audit.py, aesthetic_review.py (vision), audit_mobile.py
 ```
 
 ---
@@ -102,6 +105,11 @@ python3 scripts/check.py --final --code ./src
 | `visual_audit.py` | `--url localhost:3000` | Screenshots + Playwright audit on 4 breakpoints |
 | `check.py` | `--gate 0/1/final` | Sequential gate orchestrator |
 | `search.py` | `"query" --domain` | BM25 search across UI/UX Pro Max CSVs |
+| `audit_accessibility.py` | `--path ./src` | WCAG 2.1 AA — alt, button type, labels, lang, viewport |
+| `audit_style_uniqueness.py` | `--path ./src` | Generic AI Template detector — score > 65 blocks |
+| `audit_beauty.py` | `--path ./src` | Beauty Score (positive craft) — score < 50 blocks |
+| `audit_mobile.py` | `--path ./src` | Native craft + mobile gates (SwiftUI/Compose/Flutter/RN) |
+| `aesthetic_review.py` | `--screenshots ./audit-results` | Aesthetic judgment of screenshots — agent's own vision by default (no key); --mode api optional |
 
 ---
 
@@ -138,7 +146,12 @@ The pre-commit hook no-ops gracefully when no `DESIGN.md` is present at the repo
 - [ ] `detect_ai_slop.py`: score >= 80/100
 - [ ] `diff_design_vs_code.py`: 0 divergences
 - [ ] `audit_spacing.py`: 0 grid violations
+- [ ] `audit_style_uniqueness.py`: template score <= 65
+- [ ] `audit_beauty.py`: beauty score >= 50 (>= 70 ideal)
+- [ ] `audit_accessibility.py`: 0 WCAG 2.1 AA violations
 - [ ] `visual_audit.py`: screenshots validated on 4 breakpoints
+- [ ] `aesthetic_review.py`: vision score >= 75, reads_as "human"
+- [ ] `audit_mobile.py` (native targets only): no M1/M2 blockers, score >= 70
 - [ ] Section 8 (Dark Mode) present with background < #333 and WCAG AA
 - [ ] `prefers-reduced-motion` in CSS/JS code
 - [ ] Zero decorative emoji, zero cliche gradient, zero unjustified generic icon

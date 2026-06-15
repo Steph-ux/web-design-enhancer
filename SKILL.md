@@ -1,6 +1,6 @@
 ---
 name: web-design-enhancer
-description: Validator and enforcer of the DESIGN.md contract. Pillar 3 of the design ecosystem alongside getdesign.md (real visual references) and UI/UX Pro Max (sectoral design intelligence). Eliminates AI visual improvisation through 4 automated validation scripts, GSAP, and a Playwright audit on 4 breakpoints.
+description: Validator and enforcer of the DESIGN.md contract. Pillar 3 of the design ecosystem — the two upstream pillars (getdesign.md real visual references + UI/UX Pro Max sectoral design intelligence) are MANDATORY before any code. Eliminates AI visual improvisation through 8 sequential validation gates (incl. a non-bypassable rendered visual + vision pass), GSAP, and a Playwright audit on 4 breakpoints.
 ---
 
 # Web Design Enhancer
@@ -38,6 +38,23 @@ This skill is the **validator and enforcer** of the design ecosystem. It guarant
 ### ⚡ Phase 0 — Design Anchoring (mandatory, before any code)
 
 **Never create a DESIGN.md from scratch. Feed its creation from the two sources.**
+
+> ## 🚫 HARD STOP — run BOTH upstream pillars before any DESIGN.md or code
+>
+> This skill (Pillar 3) only **validates**; it does **not** invent a look. Picking an archetype from `references/design-archetypes.md` is **NOT** a substitute for the pillars. Before writing a single line of DESIGN.md or code you MUST produce both artifacts:
+>
+> 1. **Pillar 2 — UI/UX Pro Max** (sectoral intelligence, built into this skill):
+>    ```bash
+>    python3 scripts/search.py "<product description>" --design-system -p "<Project>" --save
+>    ```
+>    → produces `design-system-output*.md` (page pattern, semantic palette, typography, sectoral antipatterns).
+> 2. **Pillar 1 — getdesign.md** (real visual reference, external npx tool, needs Node):
+>    ```bash
+>    npx getdesign@latest add <brand>
+>    ```
+>    → produces a `getdesign-*.md` / `brand-*.md` reference at the project root. Verify the output filename matches that glob (rename it if getdesign writes plain `DESIGN.md`, so it is not confused with your project contract).
+>
+> **`check.py --gate 0` blocks** if either artifact (or the `## 0. Sources Phase 0` section in DESIGN.md) is missing. **Do not proceed to Phase 1 until `python3 scripts/check.py --gate 0` is green.** Skipping the pillars yields a design that is "technically correct but generic" — exactly the failure this ecosystem exists to prevent.
 
 #### 0a. Visual reference — getdesign.md
 
@@ -220,7 +237,9 @@ No code before gate 2 is green and scope/responsive are declared.
 
 #### Step 1 — Choose a design archetype explicitly
 
-Before any code, state which archetype from `references/design-archetypes.md` you are targeting. The choice must be justified by the brief:
+Before any code, state which archetype from `references/design-archetypes.md` you are targeting. The choice must be justified by the brief.
+
+Then open `references/beauty-gestures.md` and commit to that archetype's **signature gestures** + **validated font pairing** — the positive craft moves that lift the Beauty Score (gate 7). Avoiding clichés is not enough; you must add deliberate beauty:
 
 | If the brief mentions… | Default archetype to consider |
 |---|---|
@@ -286,7 +305,7 @@ The final `DESIGN.md` must be complete before any code. Minimum requirements:
 - **§6 Components**: max 3 variants per type
 - **§7 Animations**: ≤ 400ms, mandatory `prefers-reduced-motion` mention
 - **§8 Dark Mode**: mandatory if main background is dark — surface, secondary-text, dark-border documented
-- **§9 Mobile** *(optional — mandatory if a native app is in scope)*: touch targets ≥ 44pt iOS / 48dp Android, safe areas, native units
+- **§9 Mobile** *(optional — mandatory if a native app is in scope)*: touch targets ≥ 44pt iOS / 48dp Android, safe areas, native units. For native targets, run `python3 scripts/audit_mobile.py --path ./<app-src>` (Phase 5, separate from `check.py --final`) and clear all M1/M2 blockers — see `references/mobile-beauty.md` for per-platform gestures
 - **§10 Three.js** *(optional — mandatory if a WebGL scene is in scope)*: pixel ratio cap, dispose strategy, WebGL fallback — see `references/threejs-best-practices.md`
 
 Validate before continuing:
@@ -363,11 +382,29 @@ Inspects on **4 breakpoints** (375 / 768 / 1280 / 1920px). Fix immediately if:
 
 Validation loop: fix → rerun audit → repeat until zero defect.
 
+#### Aesthetic review — the "is it beautiful?" judgment (vision model)
+
+Mechanical audits cannot answer "does this look designed by a human?". After the visual audit is clean, submit the rendered screenshots to a vision model for a scored, structured verdict:
+
+```bash
+# 1. The script prints the screenshots + rubric + verdict schema:
+python3 scripts/aesthetic_review.py --screenshots ./audit-results --archetype "§3 Luxury"
+# 2. YOU (the vision-capable model running this skill) open those screenshots with your
+#    own vision, apply the rubric, and write the verdict JSON to verdict.json.
+# 3. Score it and get the gate exit code:
+python3 scripts/aesthetic_review.py --verdict verdict.json
+# Unsupervised pipelines may call an external model instead: --mode api --provider anthropic
+```
+
+It scores 7 dimensions an eye judges in the first seconds (first impression, hierarchy, whitespace/balance, typography, colour harmony, finish, **human-vs-AI tell**), returns an `overall_score`, a `reads_as: human|ai` flag, and ranked fixes. **Score < 60 = BLOCKED** (does not yet read as human-designed); ≥ 75 passes.
+
+> **No API key needed by default** — the model executing this skill judges with its own vision (mode `agent`). An external vision model (`--mode api`, `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`) is only for fully-unsupervised pipelines. **`check.py --final` enforces this step as gate 8: it will not authorize delivery unless a fresh `audit_report.json` and a passing aesthetic verdict both exist** — see Phase 5.
+
 ---
 
 ### Phase 5 — Automated Validation (mandatory before delivery)
 
-Run the final gate — it orchestrates all 5 validators in sequence:
+Run the final gate — it orchestrates all **8 gates** in sequence (7 static + 1 rendered visual/vision pass):
 
 | Step | Tool | What it checks |
 |---|---|---|
@@ -377,17 +414,24 @@ Run the final gate — it orchestrates all 5 validators in sequence:
 | 4 | `diff_design_vs_code.py` | Colors, fonts, animations match between DESIGN.md and code |
 | 5 | `audit_accessibility.py` | WCAG 2.1 AA — img alt, button type, input labels, div onclick, html lang, viewport meta |
 | 6 | `audit_style_uniqueness.py` | Generic AI template detection — score must be ≤ 65 |
+| 7 | `audit_beauty.py` | Positive craft floor — Beauty Score must be ≥ 50 (blocks clean-but-soulless designs) |
+| 8 | `visual_audit.py` + `aesthetic_review.py` | **Rendered pass (mandatory):** requires a fresh `audit_report.json` with a clean rendered DOM **and** a passing aesthetic verdict (`reads_as: human`, score ≥ pass). Blocks delivery if missing, stale, or below floor. |
 
 ```bash
-python3 scripts/check.py --final --code ./src
-python3 scripts/check.py --final --code ./src --verbose   # shows fix_instructions on failure
+python3 scripts/check.py --final --code ./src --url http://localhost:3000
+python3 scripts/check.py --final --code ./src --url http://localhost:3000 --verbose   # shows fix_instructions on failure
 ```
 
-> **Visual audit (separate — requires a running server):** `visual_audit.py` is NOT part of `check.py --final` because it needs a live URL. Run it manually after `check.py --final` passes:
+> **The rendered visual + vision pass is gate 8 of `check.py --final` and cannot be bypassed.** `visual_audit.py` still runs separately (it needs a live server) to PRODUCE the evidence; `check.py --final` then REQUIRES it:
 > ```bash
+> # 1. render the evidence (live server, Playwright)
 > python3 scripts/visual_audit.py --url http://localhost:3000 --output ./audit-results
+> # 2. open the screenshots with your own vision, write the verdict to ./audit-results/aesthetic-verdict.json
+> python3 scripts/aesthetic_review.py --screenshots ./audit-results --archetype "§6 Technical"
+> # 3. the final gate now blocks unless both artifacts exist, are fresh, and pass:
+> python3 scripts/check.py --final --code ./src --url http://localhost:3000
 > ```
-> It captures 4 breakpoints (375/768/1280/1920px) and audits the real rendered DOM for spacing, fonts, status badges, and A-group slop that regex cannot catch in static files.
+> Gate 8 fails (no DELIVERY AUTHORIZED) if `audit_report.json` is missing, the rendered DOM still contains slop, the report is **stale** (any source file changed after the last render), or the aesthetic verdict is missing / below floor. Default verdict path: `<audit-output>/aesthetic-verdict.json` (override with `--verdict`).
 
 If the gate fails → **do not patch files manually**. Go to Phase 5b below.
 
@@ -441,9 +485,12 @@ The output is a JSON object with a `violations` array. Each entry contains:
 | `templates/design-system.css` | Ready-to-customize CSS variables |
 | `references/design-md-spec-v2.md` | Full DESIGN.md format spec |
 | `references/antipatterns-guide.md` | Concrete ❌ vs ✅ examples |
+| `references/beauty-gestures.md` | Per-archetype signature gestures + validated font pairings, mapped to Beauty Score dimensions (the positive recipe for gate 7) |
 | `references/gsap-best-practices.md` | GSAP guide |
 | `references/threejs-best-practices.md` | Three.js guide — critical WebGL antipatterns (§10) |
 | `references/mobile-references.md` | Mobile UX references — open CSV index + walled sources (Mobbin / Page Flows / Screenlane) |
+| `references/mobile-beauty.md` | Native signature gestures + hard rules (touch targets, safe areas, nav) per platform, mapped to mobile-audit dimensions |
+| `scripts/audit_mobile.py` | Native craft + mobile gates for SwiftUI / Compose / Flutter / React Native — scores M1-M5, hard-blocks sub-min touch targets and missing safe areas |
 | `data/apple-hig-patterns.csv` | 77 Apple HIG component anatomies (iOS / iPadOS / macOS / watchOS / tvOS / visionOS / CarPlay) — queryable via `--domain apple-hig` |
 | `data/material-design-3-patterns.csv` | 155 Material Design 3 component anatomies, screen patterns, layout/motion/branding tokens (Android / cross-platform) — queryable via `--domain material-design-3` |
 | `data/pttrns-patterns.csv` | 50 Pttrns mobile UX pattern categories with anatomy — queryable via `--domain pttrns` |
@@ -453,5 +500,7 @@ The output is a JSON object with a `violations` array. Each entry contains:
 | `scripts/audit_spacing.py` | 8px grid audit on CSS files |
 | `scripts/audit_accessibility.py` | WCAG 2.1 AA — img alt, button type, input labels, div onclick, html lang, title, empty links |
 | `scripts/visual_audit.py` | Playwright visual audit — 4 breakpoints, real DOM, rendered slop detection |
+| `scripts/aesthetic_review.py` | Aesthetic judgment of rendered screenshots — the agent judges with its OWN vision by default (no key); external model optional via --mode api |
 | `scripts/diff_design_vs_code.py` | Diff DESIGN.md ↔ code (colors, fonts, animations) |
+| `scripts/audit_beauty.py` | Beauty Score (0-100) — rewards type-scale contrast, hierarchy, signature colour, spacing rhythm, finition. Blocks below 50 |
 | `.slop-ignore` | Whitelist against false positives for detect_ai_slop.py |
