@@ -338,6 +338,10 @@ python3 scripts/check.py --gate 1
 
 **`check.py --gate 1` is the canonical command.** It invokes `validate_design.py` (WCAG AA, §4 ranges, §8/§9/§10) and persists the DESIGN.md SHA-256 hash to `.phase-log.json` — the gate auto-invalidates if DESIGN.md is modified.
 
+> **§11 Signature Gesture & §12 Intentional Tensions (WARN).** Two craft sections, added to the DESIGN.md template, that `validate_design.py` checks but never *blocks* on (a gate cannot judge whether a gesture is good — over-blocking craft just produces false positives):
+> - **§11 Signature Gesture** — one specific, owned visual move, not a category. The creative budget concentrates here instead of spreading across 50 forgettable details. If you declare a `Grep signature` regex *and* pass `--code`, the final gate **verifies the gesture is actually in the code** — a declared-but-absent signature is flagged. That is the one part with teeth: it catches a signature that exists only on paper.
+> - **§12 Intentional Tensions** — at least 2 deliberate contrasts (typography, density, colour…). "Waouh" comes from contrast, not harmony. Fewer than 2 pairs, or tensions that all read as "moderate/balanced" with no real ratio, are warned.
+
 **If the command returns an error → fix DESIGN.md. Do not write a single line of code until this gate is green.**
 
 ---

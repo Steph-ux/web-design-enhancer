@@ -313,6 +313,30 @@ mesh.material.normalMap?.dispose() // normal maps
 
 ---
 
+## 11. Signature Gesture
+
+> **One thing. Extremely specific. An implementation, not a category.** The creative budget must concentrate in a single owned move, not diffuse across 50 forgettable micro-details. Concentrate, don't spread.
+
+- **Description**: [Ex: project cards get a 2px vertical accent line on the left edge that grows from 0 to 100% height in 200ms on hover. Nowhere else. No gradient, no shadow — just this.]
+- **DESIGN.md token**: [Ex: §2 accent #E84C3D]
+- **Implementation**: [Ex: `border-left` + CSS transition — not GSAP]
+- **Grep signature**: [Ex: `border-left.*transition`]
+  *(A short regex `check.py --final` can grep for in the code. If you provide it and a code path, the gate verifies the gesture is actually implemented — a declared-but-absent signature is flagged.)*
+
+---
+
+## 12. Intentional Tensions
+
+> **"Waouh" comes from deliberate contrast, not harmony.** Name at least **2** tension pairs. If every tension is "moderate", there is no tension — that is the warning. A design where everything is balanced is a design nobody remembers.
+
+(minimum 2 pairs — format: `T<n> <axis>: <pole A> / <pole B> — <ratio or note>`)
+
+- **T1 Typography**: [Ex: H1 80px / Body 15px — ratio 5.3:1 (not a clean 2:1)]
+- **T2 Density**: [Ex: hero 160px padding / feature section 24px padding]
+- **T3 Colour**: [Ex: 97% monochrome / 3% accent — one single splash of colour in the whole page]
+
+---
+
 ## Anti-Slop Validation Checklist
 
 Before delivery, verify:

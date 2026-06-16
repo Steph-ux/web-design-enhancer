@@ -634,8 +634,11 @@ def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-r
 
     # 3. validate_design.py (final pass)
     print(f"\n{CYAN}[3/8] Final DESIGN.md validation...{RESET}")
+    vd_args = [sys.executable, str(SCRIPTS_DIR / "validate_design.py"), "DESIGN.md"]
+    if code_path:
+        vd_args += ["--code", code_path]  # enables §11 signature-gesture verification
     r = subprocess.run(
-        [sys.executable, str(SCRIPTS_DIR / "validate_design.py"), "DESIGN.md"],
+        vd_args,
         capture_output=True, text=True, encoding="utf-8", errors="replace"
     )
     print(r.stdout)

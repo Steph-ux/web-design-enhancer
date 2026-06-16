@@ -164,7 +164,7 @@ web-design-enhancer-pro/
 ├── templates/
 │   ├── creative-brief-template.md    # Phase -1 point-of-view brief
 │   └── design-md-template.md         # DESIGN.md skeleton
-└── tests/                            # 250 tests
+└── tests/                            # 264 tests
     ├── test_audit_accessibility.py
     ├── test_audit_style_uniqueness.py
     ├── test_audit_beauty.py
@@ -180,5 +180,5 @@ web-design-enhancer-pro/
 
 ```bash
 py -m pytest tests/ -v
-# 250 tests — should display 250 passed
+# 264 tests — should display 264 passed
 ```

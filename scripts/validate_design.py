@@ -32,9 +32,10 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
 class DesignValidator:
     """DESIGN.md validator."""
 
-    def __init__(self, filepath: str, strict: bool = False):
+    def __init__(self, filepath: str, strict: bool = False, code_path: str = None):
         self.filepath = Path(filepath)
         self.strict = strict
+        self.code_path = code_path
         self.errors: List[str] = []
         self.warnings: List[str] = []
         self._has_threejs: bool = False  # Three.js in scope
@@ -68,6 +69,8 @@ class DesignValidator:
         self._validate_dark_mode_required()  # §8 mandatory if dark background
         self._validate_section_density()     # Contact/CTA density + odd N grid
         self._validate_threejs()           # §10 Three.js (optional, validated if present)
+        self._validate_signature_gesture()  # §11 — one owned move (WARN), verified in code if --code
+        self._validate_tensions()           # §12 — >=2 intentional contrasts (WARN)
 
         # Deduplicate identical errors
         self.errors   = list(dict.fromkeys(self.errors))
@@ -91,6 +94,8 @@ class DesignValidator:
             "darkmode":   r"## 8\. Dark Mode.*?(?=\n## |\Z)",
             "mobile":     r"## 9\. Mobile.*?(?=\n## |\Z)",
             "threejs":    r"## 10\. Three\.js.*?(?=\n## |\Z)",
+            "signature":  r"## 11\. Signature Gesture.*?(?=\n## |\Z)",
+            "tensions":   r"## 12\. Intentional Tensions.*?(?=\n## |\Z)",
         }
 
         for name, pattern in sections.items():
@@ -938,16 +943,161 @@ class DesignValidator:
             print("RESULT: PASSED - Ready to code!")
         print("=" * 60 + "\n")
 
+    # ── §11 Signature Gesture ────────────────────────────────────────────────
+
+    def _validate_signature_gesture(self):
+        """§11 — the design must concentrate its creative budget in ONE owned move.
+
+        WARN (never block): a missing/unfilled §11 means the budget is likely
+        diffused across forgettable micro-details. If a 'Grep signature' regex is
+        declared AND a code path is provided, verify the gesture is actually
+        implemented — a declared-but-absent signature is the real failure (the
+        original 'grep the pattern' idea is a tautology unless checked against
+        real code).
+        """
+        section = self.sections.get("signature", "")
+        if not section:
+            self.warnings.append(
+                "[WARN] Section '## 11. Signature Gesture' missing. Concentrate the "
+                "creative budget in ONE specific, owned move (see templates/design-md-template.md "
+                "§11) instead of spreading it across forgettable details."
+            )
+            return
+
+        # Unfilled placeholders?
+        if "[Ex:" in section or "___" in section:
+            self.warnings.append(
+                "[WARN] §11 Signature Gesture has unfilled placeholders. Replace [Ex: ...] "
+                "with the one specific gesture this design owns."
+            )
+            return
+
+        # Extract the declared grep signature, if any.
+        m = re.search(r"Grep signature\**\s*:\s*\**\s*`([^`]+)`", section, re.IGNORECASE)
+        if not m:
+            self.warnings.append(
+                "[WARN] §11 declares a gesture but no `Grep signature` regex. Add one so "
+                "check.py --final can verify the gesture is actually implemented."
+            )
+            return
+
+        pattern = m.group(1).strip()
+        if not self.code_path:
+            # Nothing to verify against — note it and move on.
+            self.warnings.append(
+                f"[INFO] §11 signature `{pattern}` declared. Run with --code <path> so the "
+                "gate can verify it is implemented in the rendered code."
+            )
+            return
+
+        # Verify the signature appears in the code.
+        try:
+            compiled = re.compile(pattern, re.IGNORECASE)
+        except re.error:
+            self.warnings.append(
+                f"[WARN] §11 `Grep signature` is not a valid regex: {pattern!r}. "
+                "Use a simple pattern like `border-left.*transition`."
+            )
+            return
+
+        found = self._grep_code(compiled)
+        if found:
+            # Genuine implemented signature — this is the one thing we reward.
+            print(f"[OK] §11 signature gesture implemented: `{pattern}` found in {found}")
+        else:
+            self.warnings.append(
+                f"[WARN] §11 signature `{pattern}` is declared in DESIGN.md but NOT found in "
+                f"the code ({self.code_path}). Implement the owned gesture or correct the regex — "
+                "a signature that exists only on paper is not a signature."
+            )
+
+    def _grep_code(self, compiled) -> str:
+        """Return the first code file matching `compiled`, or '' if none."""
+        root = Path(self.code_path)
+        exts = {".html", ".htm", ".css", ".scss", ".sass", ".less",
+                ".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte", ".astro"}
+        if root.is_file():
+            candidates = [root]
+        else:
+            candidates = [p for p in root.rglob("*")
+                          if p.is_file() and p.suffix.lower() in exts]
+        for p in candidates:
+            try:
+                if compiled.search(p.read_text(encoding="utf-8", errors="ignore")):
+                    return str(p)
+            except OSError:
+                continue
+        return ""
+
+    # ── §12 Intentional Tensions ─────────────────────────────────────────────
+
+    def _validate_tensions(self):
+        """§12 — 'waouh' comes from deliberate contrast. Require >=2 tension pairs.
+
+        WARN (never block): fewer than 2 declared tensions, or tensions that all
+        read as 'moderate' (no real contrast), are flagged. We can count pairs and
+        detect uniformity heuristically; we cannot judge whether a tension is
+        *good* — that stays a nudge, not a block.
+        """
+        section = self.sections.get("tensions", "")
+        if not section:
+            self.warnings.append(
+                "[WARN] Section '## 12. Intentional Tensions' missing. Name at least 2 "
+                "deliberate contrasts (typography, density, colour...) — harmony alone is "
+                "forgettable. See templates/design-md-template.md §12."
+            )
+            return
+
+        if "[Ex:" in section or "___" in section:
+            self.warnings.append(
+                "[WARN] §12 Intentional Tensions has unfilled placeholders. Replace [Ex: ...] "
+                "with the real contrasts this design commits to."
+            )
+            return
+
+        # Count tension lines: bullet items starting with a T<n> label.
+        pairs = re.findall(r"^\s*[-*]\s*\**\s*T\d+\b", section, re.MULTILINE)
+        n = len(pairs)
+        if n == 0:
+            self.warnings.append(
+                "[WARN] §12 present but no tension pairs found. Use the format "
+                "'- T1 Typography: <pole A> / <pole B> — <ratio>'. Minimum 2."
+            )
+            return
+        if n < 2:
+            self.warnings.append(
+                f"[WARN] §12 declares only {n} tension pair. A single contrast is not a system "
+                "of tensions — name at least 2 (typography, density, colour, motion...)."
+            )
+            return
+
+        # Heuristic uniformity check: if 'moderate'/'balanced'/'subtle' dominate
+        # and no contrast ratio or '/' pole-split appears, the tensions are likely flat.
+        low = section.lower()
+        flat_terms = low.count("moderate") + low.count("balanced") + low.count("subtle")
+        has_contrast = bool(re.search(r"\d+\s*[:/]\s*\d+", section)) or section.count("/") >= 2
+        if flat_terms >= 2 and not has_contrast:
+            self.warnings.append(
+                "[WARN] §12 tensions read as uniformly 'moderate/balanced' with no sharp "
+                "contrast (no ratios, no clear pole splits). If everything is moderate, there "
+                "is no tension — push at least one pair to a real extreme."
+            )
+
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python3 validate_design.py DESIGN.md [--strict]")
+        print("Usage: python3 validate_design.py DESIGN.md [--strict] [--code <path>]")
         sys.exit(1)
 
     filepath = sys.argv[1]
     strict = "--strict" in sys.argv
+    code_path = None
+    if "--code" in sys.argv:
+        i = sys.argv.index("--code")
+        if i + 1 < len(sys.argv):
+            code_path = sys.argv[i + 1]
 
-    validator = DesignValidator(filepath, strict)
+    validator = DesignValidator(filepath, strict, code_path)
     success = validator.run()
 
     sys.exit(0 if success else 1)
