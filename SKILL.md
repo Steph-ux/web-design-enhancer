@@ -401,6 +401,11 @@ python3 scripts/aesthetic_review.py --verdict verdict.json
 
 It scores 7 dimensions an eye judges in the first seconds (first impression, hierarchy, whitespace/balance, typography, colour harmony, finish, **human-vs-AI tell**), returns an `overall_score`, a `reads_as: human|ai` flag, and ranked fixes. **Score < 60 = BLOCKED** (does not yet read as human-designed); ≥ 75 passes.
 
+> **Who judges matters (provenance).** When you generate the design *and* score your own screenshots, the verdict is `reviewer: self` — and self-review is structurally inflated: you unconsciously credit the page for craft you *intended* but did not render. The script therefore applies a provenance discount to any self-judged verdict (a self-flattered "shippable" 80 lands at 72 and fails the pass mark). To earn a trustworthy verdict, break the self-judging loop:
+> - **Independent model** (best for unsupervised): `--mode api --provider anthropic` (or `openai`) — a *different* model judges, tagged `reviewer: independent`, no discount.
+> - **Human sign-off**: a person reviews the screenshots and runs `--reviewer human` — trusted, no discount.
+> - Be honest in the verdict's `reviewer` field; the art-director bar in the rubric means "clean and professional" caps at ~65 unless you can name one specific, owned, memorable idea.
+
 > **No API key needed by default** — the model executing this skill judges with its own vision (mode `agent`). An external vision model (`--mode api`, `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`) is only for fully-unsupervised pipelines. **`check.py --final` enforces this step as gate 8: it will not authorize delivery unless a fresh `audit_report.json` and a passing aesthetic verdict both exist** — see Phase 5.
 
 ---

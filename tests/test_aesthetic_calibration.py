@@ -61,7 +61,11 @@ def test_honest_80_two_fixes_no_penalty():
     eff, flags = mod.calibrate_verdict(
         _verdict(80, 82, ["Fill the empty right half of the hero", "Differentiate project cards"]), 60, 75)
     assert eff == 80
-    assert flags == []
+    # No score penalty (no inflation/uncalibrated). A legacy verdict with no
+    # 'reviewer' field gets only the advisory PROVENANCE UNKNOWN flag, which is
+    # informational and does not block.
+    assert not any(f.startswith(("INFLATION", "UNCALIBRATED")) for f in flags)
+    assert all(f.startswith("PROVENANCE UNKNOWN") for f in flags)
 
 
 def test_uniform_perfect_dims_trigger_guard_even_if_overall_modest():
