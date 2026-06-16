@@ -73,6 +73,24 @@ RUBRIC_DIMENSIONS = [
 _RUBRIC_TEXT = "\n".join(f"  - {k}: {desc}" for k, desc in RUBRIC_DIMENSIONS)
 
 
+# ── Reviewer provenance ──────────────────────────────────────────────────────
+# The deepest validity problem: the model that GENERATED the design is usually
+# the same one scoring its screenshots. It unconsciously fills in the visual
+# gaps it intended, so a self-review is systematically inflated. We cannot force
+# independence from inside one process, but we can (a) make provenance explicit
+# and (b) structurally discount a self-review so the cheapest path to a high
+# score is to have someone/something else judge.
+
+REVIEWER_SELF = {"self", "agent"}          # the generating model judged itself
+REVIEWER_INDEPENDENT = {"independent", "api"}  # a different model judged
+REVIEWER_HUMAN = {"human"}                 # a person signed the verdict
+
+# Discount applied to an explicitly self-judged verdict. Tuned to pull a
+# self-flattered "shippable" 75-80 below the pass mark unless the work is
+# genuinely strong, without nuking an honest mid-score into the floor.
+SELF_JUDGE_DISCOUNT = 8
+
+
 def build_prompt(archetype: str | None, breakpoints: list[str]) -> str:
     """Assemble the instruction sent alongside the screenshots."""
     arch = (
@@ -88,6 +106,14 @@ def build_prompt(archetype: str | None, breakpoints: list[str]) -> str:
         + arch +
         "\nGoal of the project: the page must look magnificent and indistinguishable from "
         "the work of a skilled human designer — not generic AI output.\n\n"
+        "THE ART-DIRECTOR TEST (apply it before scoring):\n"
+        "  Would an art director at a top studio (Pentagram, Koto, Instrument) save a "
+        "screenshot of this to their inspiration folder? If your honest answer is 'no, but "
+        "it's clean and professional', that is NOT a pass — that is the FLOOR. 'Clean' and "
+        "'professional' earn ~65, no more. Points above 70 must be EARNED by a specific, "
+        "memorable, owned idea you can name in one sentence (a signature type treatment, a "
+        "deliberate compositional tension, one fearless colour move). If you cannot name that "
+        "one thing, the design is competent wallpaper — cap the overall_score at 65.\n\n"
         "Score each dimension 0-100 (0 = amateur/AI-slop, 100 = award-worthy):\n"
         + _RUBRIC_TEXT +
         "\n\nCalibration anchors — score like a skeptical senior reviewer, not a cheerleader:\n"
@@ -107,6 +133,7 @@ def build_prompt(archetype: str | None, breakpoints: list[str]) -> str:
         '  "overall_score": <int>,\n'
         '  "verdict": "<one line>",\n'
         '  "reads_as": "human" | "ai",\n'
+        '  "memorable_idea": "<the one nameable owned idea, or null if none>",\n'
         '  "dimensions": { "first_impression": {"score": <int>, "note": "<str>"}, ... all 7 ... },\n'
         '  "top_fixes": ["<fix>", ...]\n'
         "}"
@@ -243,6 +270,11 @@ def print_report(verdict: dict[str, Any], floor: int, passing: int, effective: i
     print(f"{BOLD}{sep}{RESET}\n")
     print(f"  Overall: {colour}{BOLD}{s}/100{RESET}   reads as: "
           f"{(GREEN if reads=='human' else RED)}{reads.upper()}{RESET}")
+    kind = reviewer_kind(verdict)
+    _rev_colour = {"independent": GREEN, "human": GREEN, "self": YELLOW, "unknown": YELLOW}[kind]
+    _rev_label = {"independent": "INDEPENDENT (different model)", "human": "HUMAN",
+                  "self": "SELF (generating model judged itself)", "unknown": "UNDECLARED"}[kind]
+    print(f"  reviewer: {_rev_colour}{_rev_label}{RESET}")
     print(f"  {DIM}{verdict.get('verdict','')}{RESET}\n")
     if effective is not None and effective != raw:
         print(f"  {DIM}(raw self-score {raw} -> calibrated {s}){RESET}")
@@ -286,12 +318,37 @@ def exit_code_for(score: int, floor: int, passing: int) -> int:
     return 0
 
 
+def reviewer_kind(verdict: dict[str, Any]) -> str:
+    """Classify who produced the verdict: 'self' | 'independent' | 'human' | 'unknown'.
+
+    'unknown' = no reviewer field (legacy verdicts) — treated as self for warning
+    purposes but NOT discounted, to stay backward compatible.
+    """
+    raw = str(verdict.get("reviewer", "")).strip().lower()
+    if not raw:
+        return "unknown"
+    if raw in REVIEWER_HUMAN:
+        return "human"
+    if raw in REVIEWER_INDEPENDENT:
+        return "independent"
+    if raw in REVIEWER_SELF:
+        return "self"
+    return "unknown"
+
+
 def calibrate_verdict(verdict: dict[str, Any], floor: int, passing: int) -> tuple[int, list]:
     """Anti-inflation calibration for a vision verdict.
 
-    The agent frequently grades its OWN work, so a self-flattered near-perfect
-    verdict is discounted and a verdict without concrete critiques is treated as
-    un-calibrated. Returns (effective_score, flags).
+    Two independent axes of inflation are corrected:
+
+    1. SCORE inflation — a self-flattered near-perfect verdict is discounted and
+       a verdict without concrete critiques is treated as un-calibrated.
+    2. PROVENANCE inflation (#5B) — when the SAME model that generated the design
+       also judged it ('reviewer': 'self'/'agent'), the score is structurally
+       discounted, because self-review fills in intended-but-absent craft. An
+       'independent' (different model) or 'human' verdict is trusted as-is.
+
+    Returns (effective_score, flags).
     """
     raw = int(verdict.get("overall_score", 0))
     dims = verdict.get("dimensions", {}) or {}
@@ -310,6 +367,25 @@ def calibrate_verdict(verdict: dict[str, Any], floor: int, passing: int) -> tupl
             f"INFLATION GUARD - near-perfect scores (overall {raw}, {len(fixes)} concrete "
             f"fix(es)) match the self-flattery pattern. Applied -{penalty} calibration "
             f"penalty -> effective {effective}/100."
+        )
+
+    kind = reviewer_kind(verdict)
+    if kind == "self":
+        before = effective
+        effective = max(0, effective - SELF_JUDGE_DISCOUNT)
+        flags.append(
+            f"SELF-JUDGED - the generating model also scored its own work "
+            f"(reviewer=self). Self-review is structurally inflated; applied "
+            f"-{SELF_JUDGE_DISCOUNT} provenance discount -> {effective}/100. For a "
+            f"trustworthy verdict, have a DIFFERENT model judge "
+            f"(--mode api --provider <other>) or a human sign off (--reviewer human)."
+        )
+        _ = before
+    elif kind == "unknown":
+        flags.append(
+            "PROVENANCE UNKNOWN - verdict has no 'reviewer' field. Declare who "
+            "judged: 'self' (generating model), 'independent' (different model), "
+            "or 'human'. Independent review is strongly recommended."
         )
 
     if len(fixes) < 2:
@@ -338,6 +414,10 @@ def build_parser() -> argparse.ArgumentParser:
                         "api: call an external vision model.")
     p.add_argument("--verdict", type=Path, default=None,
                    help="Path to a verdict JSON the agent produced; scores it and returns the gate exit code.")
+    p.add_argument("--reviewer", choices=["self", "agent", "independent", "human"], default=None,
+                   help="Override/declare who judged: self (generating model — discounted), "
+                        "independent (different model), or human. In --verdict mode this overrides "
+                        "the verdict's own 'reviewer' field.")
     p.add_argument("--threshold", nargs=2, type=int, metavar=("FLOOR", "PASS"), default=[60, 75])
     p.add_argument("--json", action="store_true", dest="json_output")
     # --- api mode only ---
@@ -370,6 +450,8 @@ def main() -> int:
         except (OSError, ValueError) as e:
             print(f"Error reading verdict: {e}", file=sys.stderr)
             return 2
+        if args.reviewer:
+            verdict["reviewer"] = args.reviewer
         effective, flags = calibrate_verdict(verdict, floor, passing)
         uncalibrated = any(f.startswith("UNCALIBRATED") for f in flags)
         code = 2 if uncalibrated else exit_code_for(effective, floor, passing)
@@ -393,13 +475,18 @@ def main() -> int:
 
     # Default: the model executing the skill judges with its OWN native vision — no API key.
     if args.mode == "agent":
+        declared_reviewer = args.reviewer or "self"
         manifest = {
             "status": "awaiting_agent_vision",
             "instructions": (
                 "You (the model executing this skill) are vision-capable. Open each screenshot "
                 "listed below with your own vision, apply the rubric, and write the verdict JSON "
                 "to a file. Then run: python3 scripts/aesthetic_review.py --verdict <file.json> "
-                f"--threshold {floor} {passing}  to score it and get the gate exit code."
+                f"--threshold {floor} {passing}  to score it and get the gate exit code.\n"
+                "NOTE: if you generated this design, your verdict is 'self' and will be "
+                "discounted — self-review is structurally inflated. For a trustworthy score, "
+                "have a DIFFERENT model judge (--mode api --provider <other>) or a human sign "
+                "off (--reviewer human)."
             ),
             "screenshots": [str(p.resolve()) for _, p in shots],
             "rubric": prompt,
@@ -407,9 +494,12 @@ def main() -> int:
                 "overall_score": "int 0-100",
                 "verdict": "one line",
                 "reads_as": "human | ai",
+                "reviewer": "self | independent | human  (be honest: 'self' if you made this design)",
+                "memorable_idea": "the one nameable owned idea, or null",
                 "dimensions": {k: {"score": "int", "note": "str"} for k, _ in RUBRIC_DIMENSIONS},
                 "top_fixes": ["str", "..."],
             },
+            "declared_reviewer": declared_reviewer,
             "thresholds": {"floor": floor, "pass": passing},
         }
         print(json.dumps(manifest, indent=2, ensure_ascii=False))
@@ -432,6 +522,8 @@ def main() -> int:
     except Exception as e:  # noqa: BLE001
         print(f"Error: {e}", file=sys.stderr)
         return 2
+    # An external provider genuinely judged — provenance is independent unless overridden.
+    verdict["reviewer"] = args.reviewer or "independent"
     effective, flags = calibrate_verdict(verdict, floor, passing)
     uncalibrated = any(f.startswith("UNCALIBRATED") for f in flags)
     code = 2 if uncalibrated else exit_code_for(effective, floor, passing)
