@@ -83,6 +83,77 @@ Here is the result generated with this skill for a football club (zero generic A
 
 ---
 
+## Example prompts
+
+The way you brief the model **compresses or decompresses** its output. A vague brief pulls it toward the statistical default (the SaaS template everyone has seen). A brief that imposes a point of view pushes it out of its approval distribution — that is where un-generic results live.
+
+### Compression in action — same app, two briefs
+
+| Brief | What you get |
+|---|---|
+| `Create a developer portfolio with a modern, professional design` | Dark hero, blue→purple gradient, 3-column card grid. Identical to 10 000 others. |
+| `Create a developer portfolio as if Dieter Rams worked in 2026 and decided typography IS the interface. Zero illustration, zero icons. Two colours: off-white and one acid colour you must justify. The name in the hero is 140px, everything else is 15px, nothing in between.` | A page nobody has seen — because the brief forced it out of the default. |
+
+Both produce a portfolio. Only the second is memorable. **Write the second kind.**
+
+### Ready-to-use prompts (mapped to archetype + a verified reference)
+
+Each prompt names a feeling, one unexpected move, and a hero dimension — the same four things `CREATIVE-BRIEF.md` will ask you to commit to (Phase -1). The reference is a real `npx getdesign@latest add <brand>` from `data/getdesign-references.csv`.
+
+```text
+# Editorial / news app — §2 Editorial, anchor: wired
+Build a long-form tech journalism site. It must feel like a printed broadsheet
+that happens to be on a screen — ink-dense, custom serif display, mono kickers.
+The unexpected move: no hero image at all; the opening is a 96px pull-quote.
+Hero dimension: typography. Anchor on `wired`, not on any SaaS blog template.
+```
+
+```text
+# Personal finance dashboard — §6 Technical/Monochrome, anchor: linear.app
+Build a budgeting dashboard that feels like a precision instrument, not a bank.
+Zinc monochrome, tabular figures, dense but calm. The unexpected move: the only
+colour in the entire UI is a single semantic green that appears nowhere except
+a positive balance. Hero dimension: negative space. Anchor on `linear.app`.
+```
+
+```text
+# Wellness / booking site — §5 Organic/Hand-crafted, anchor: clay
+Build a spa booking site that feels like stepping onto warm stone at dawn.
+Hand-drawn asymmetry, paper texture, no hard rectangles. The unexpected move:
+the booking calendar is laid out as a horizontal sun-path, not a grid.
+Hero dimension: illustration. Anchor on `clay` (art-directed, organic), not a
+wellness-app template — and avoid every cliché (no soft gradients).
+```
+
+```text
+# Indie game landing — §9 Retro/Nostalgic, anchor: nintendo-2001
+Build a landing page for a roguelike that feels like a Y2K console boot screen —
+brushed-metal panels, dotted carbon bars, outlined box-art type. The unexpected
+move: the navigation is a fake cartridge-select carousel. Hero dimension: motion.
+Anchor on `nintendo-2001`. This is the opposite of a clean modern SaaS page.
+```
+
+```text
+# Football / sports club — §7 Playful/Expressive, anchor: nike
+Build a site for a local football club that feels like the tunnel walk before
+kickoff — loud display type, full-bleed photography, one electric accent. The
+unexpected move: match scores are set in 120px condensed type as the hero, stats
+before any prose. Hero dimension: typography. Anchor on `nike`, not a SaaS grid.
+```
+
+```text
+# Luxury cosmetics — §3 Luxury/Restrained, anchor: ferrari (for cinematic restraint)
+Build a cosmetics brand site that feels like a private atelier at closing time —
+ivory, thin type, vast whitespace, zero bright colour. The unexpected move: the
+product grid is a single column, one product per full viewport, scrolled slowly.
+Hero dimension: negative space. Break the rule that e-commerce needs a dense grid.
+```
+
+> **The pattern:** name the feeling, the one unexpected move, the hero dimension, and the rule you break — then anchor on a non-SaaS reference. That is exactly what Phase -1 (`CREATIVE-BRIEF.md`) and Phase 0 (anti-monoculture) enforce. These prompts just front-load it.
+
+
+---
+
 ## The 7 automatic validation gates
 
 Before each delivery, the AI runs:
