@@ -41,7 +41,7 @@ def _run(html: str) -> list[str]:
     (d / "DESIGN.md").write_text(_DESIGN, encoding="utf-8")
     r = subprocess.run(
         [sys.executable, SCRIPT, "--design", str(d / "DESIGN.md"), "--code", str(d), "--json"],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     data = json.loads(r.stdout)
     return [v.get("message", "") for v in data.get("violations", [])]

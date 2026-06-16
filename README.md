@@ -161,7 +161,7 @@ web-design-enhancer-pro/
 │   └── threejs-best-practices.md     # WebGL scenes
 ├── templates/
 │   └── design-md-template.md         # DESIGN.md skeleton
-└── tests/                            # 200 tests
+└── tests/                            # 212 tests
     ├── test_audit_accessibility.py
     ├── test_audit_style_uniqueness.py
     ├── test_audit_beauty.py
@@ -177,5 +177,5 @@ web-design-enhancer-pro/
 
 ```bash
 py -m pytest tests/ -v
-# 200 tests — should display 200 passed
+# 212 tests — should display 212 passed
 ```

@@ -277,7 +277,7 @@ def check_gate1():
 
     result = subprocess.run(
         [sys.executable, str(SCRIPTS_DIR / "validate_design.py"), "DESIGN.md"],
-        capture_output=True, text=True
+        capture_output=True, text=True, encoding="utf-8", errors="replace"
     )
     print(result.stdout)
     if result.returncode == 0:
@@ -406,7 +406,7 @@ def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-r
     slop_args = [sys.executable, str(SCRIPTS_DIR / "detect_ai_slop.py"), "--design", "DESIGN.md"]
     if code_path:
         slop_args += ["--code", code_path]
-    r = subprocess.run(slop_args, capture_output=True, text=True)
+    r = subprocess.run(slop_args, capture_output=True, text=True, encoding="utf-8", errors="replace")
     print(r.stdout)
     if r.returncode != 0:
         errors.append("detect_ai_slop.py — antipatterns detected")
@@ -414,7 +414,7 @@ def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-r
             # Re-run in JSON mode to get machine-readable fix instructions
             print(f"\n{YELLOW}  Fix instructions (JSON mode):{RESET}")
             json_args = slop_args + ["--json"]
-            rj = subprocess.run(json_args, capture_output=True, text=True)
+            rj = subprocess.run(json_args, capture_output=True, text=True, encoding="utf-8", errors="replace")
             try:
                 data = json.loads(rj.stdout)
                 for v in data.get("violations", [])[:10]:  # cap at 10
@@ -428,7 +428,7 @@ def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-r
     spacing_path = code_path or "."
     r = subprocess.run(
         [sys.executable, str(SCRIPTS_DIR / "audit_spacing.py"), "--path", spacing_path],
-        capture_output=True, text=True
+        capture_output=True, text=True, encoding="utf-8", errors="replace"
     )
     print(r.stdout)
     if r.returncode != 0:
@@ -438,7 +438,7 @@ def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-r
     print(f"\n{CYAN}[3/8] Final DESIGN.md validation...{RESET}")
     r = subprocess.run(
         [sys.executable, str(SCRIPTS_DIR / "validate_design.py"), "DESIGN.md"],
-        capture_output=True, text=True
+        capture_output=True, text=True, encoding="utf-8", errors="replace"
     )
     print(r.stdout)
     if r.returncode != 0:
@@ -449,7 +449,7 @@ def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-r
     if code_path:
         r = subprocess.run(
             [sys.executable, str(SCRIPTS_DIR / "diff_design_vs_code.py"), "DESIGN.md", "--code", code_path],
-            capture_output=True, text=True
+            capture_output=True, text=True, encoding="utf-8", errors="replace"
         )
         print(r.stdout)
         if r.returncode != 0:
@@ -468,7 +468,7 @@ def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-r
                 a11y_args += ["--json"]
         else:
             a11y_args += ["--path", "."]
-        r = subprocess.run(a11y_args, capture_output=True, text=True)
+        r = subprocess.run(a11y_args, capture_output=True, text=True, encoding="utf-8", errors="replace")
         print(r.stdout)
         if r.returncode != 0:
             errors.append("audit_accessibility.py — WCAG 2.1 violations found")
@@ -482,7 +482,7 @@ def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-r
         uniq_args = [sys.executable, str(uniqueness_script), "--path", code_path or "."]
         if verbose:
             uniq_args += ["--json"]
-        r = subprocess.run(uniq_args, capture_output=True, text=True)
+        r = subprocess.run(uniq_args, capture_output=True, text=True, encoding="utf-8", errors="replace")
         print(r.stdout)
         if r.returncode == 2:
             errors.append(
@@ -501,7 +501,7 @@ def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-r
         beauty_args = [sys.executable, str(beauty_script), "--path", code_path or "."]
         if verbose:
             beauty_args += ["--json"]
-        r = subprocess.run(beauty_args, capture_output=True, text=True)
+        r = subprocess.run(beauty_args, capture_output=True, text=True, encoding="utf-8", errors="replace")
         print(r.stdout)
         if r.returncode == 2:
             errors.append(
@@ -628,7 +628,7 @@ def evaluate_visual_gate(audit_output="./audit-results", code_path=None, verdict
     else:
         r = subprocess.run(
             [sys.executable, str(SCRIPTS_DIR / "aesthetic_review.py"), "--verdict", str(verdict_file)],
-            capture_output=True, text=True
+            capture_output=True, text=True, encoding="utf-8", errors="replace"
         )
         if r.stdout:
             infos.append(r.stdout.rstrip())

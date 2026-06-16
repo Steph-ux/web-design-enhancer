@@ -76,7 +76,7 @@ def _cli(verdict):
     f = tempfile.mktemp(suffix=".json")
     Path(f).write_text(json.dumps(verdict))
     r = subprocess.run([sys.executable, str(_AR), "--verdict", f, "--json"],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
     out = json.loads(r.stdout)
     return r.returncode, out["effective_score"]
 

@@ -496,7 +496,7 @@ class DesignValidator:
 
         # Generic Lucide icons
         lucide_icons = ["sparkles", "zap", "cog", "network", "arrow", "check", "star"]
-        found_icons = [icon for icon in lucide_icons if icon in content_lower]
+        found_icons = [icon for icon in lucide_icons if re.search(rf"\b{icon}\b", content_lower)]
 
         if found_icons:
             self.warnings.append(
@@ -506,7 +506,7 @@ class DesignValidator:
 
         # Vague buzzwords
         buzzwords = ["premium", "modern", "elegant", "amazing", "incredible"]
-        found_buzzwords = [bw for bw in buzzwords if bw in content_lower]
+        found_buzzwords = [bw for bw in buzzwords if re.search(rf"\b{bw}\b", content_lower)]
 
         if found_buzzwords:
             self.warnings.append(

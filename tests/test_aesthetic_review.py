@@ -161,7 +161,7 @@ class TestAgentMode:
         d = _shots_dir(("mobile","desktop"))
         script = str(Path(__file__).parent.parent / "scripts" / "aesthetic_review.py")
         r = subprocess.run([sys.executable, script, "--screenshots", str(d), "--archetype", "§3 Luxury"],
-                           capture_output=True, text=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
         assert r.returncode == 0
         m = _json.loads(r.stdout)
         assert m["status"] == "awaiting_agent_vision"
@@ -175,7 +175,7 @@ class TestAgentMode:
         vfile = Path(tempfile.mkdtemp()) / "verdict.json"
         vfile.write_text(_json.dumps({"overall_score": 82, "verdict": "clean", "reads_as": "human", "top_fixes": ["Tighten hero spacing on mobile", "Add a signature accent to cards"]}))
         r = subprocess.run([sys.executable, script, "--verdict", str(vfile), "--json"],
-                           capture_output=True, text=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
         assert r.returncode == 0  # 82 >= pass 75
         out = _json.loads(r.stdout)
         assert out["overall_score"] == 82 and out["exit_code"] == 0
@@ -184,5 +184,5 @@ class TestAgentMode:
         script = str(Path(__file__).parent.parent / "scripts" / "aesthetic_review.py")
         vfile = Path(tempfile.mkdtemp()) / "v.json"
         vfile.write_text(_json.dumps({"overall_score": 40}))
-        r = subprocess.run([sys.executable, script, "--verdict", str(vfile)], capture_output=True, text=True)
+        r = subprocess.run([sys.executable, script, "--verdict", str(vfile)], capture_output=True, text=True, encoding="utf-8", errors="replace")
         assert r.returncode == 2
