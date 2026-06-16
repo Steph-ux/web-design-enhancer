@@ -97,6 +97,8 @@ Examples by project type:
 
 > **Anti-monoculture rule (Phase 0).** The getdesign catalogue is ~70% SaaS/tech, so anchoring only on SaaS brands (Stripe, Vercel, Linear…) reproduces the exact "every AI site looks like a San-Francisco SaaS" failure this skill exists to prevent. **Add at least one non-SaaS anchor.** `check.py --gate 0` classifies your references via `data/getdesign-references.csv` and **warns** (does not block — a fintech may legitimately anchor on Stripe alone) when every reference is SaaS/tech. The editable allow-list of verified non-SaaS brands lives in that CSV — add rows as getdesign's catalogue grows.
 >
+> **Keep the allow-list fresh.** getdesign adds and removes brands, so the CSV snapshot drifts. `scripts/sync_references.py --check` reports drift (dead rows whose `add` would fail, new brands missing from the CSV) and exits non-zero — safe to run in CI. `--update` appends new brands as `segment=unknown` for you to classify by hand; it never auto-deletes and never guesses the saas/non-saas call for you.
+>
 > A developer portfolio briefed on `nintendo-2001 + wired` produces something nobody has seen; briefed on Stripe alone, it produces a failed Stripe. Diversify the anchor, diversify the output.
 
 The reference `DESIGN.md` is dropped at the project root. **It is inspiration, not copy-paste.** Extract the relevant tokens (colors, type, radii, shadows) that match the project.

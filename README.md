@@ -154,6 +154,7 @@ web-design-enhancer-pro/
 │   ├── aesthetic_review.py           # Vision aesthetic judgment (agent or API mode)
 │   ├── validate_design.py            # DESIGN.md contract validation
 │   ├── diff_design_vs_code.py        # Drift code vs DESIGN.md
+│   ├── sync_references.py            # Keep getdesign-references.csv in sync with getdesign
 │   └── visual_audit.py               # Playwright 4 breakpoints capture
 ├── references/
 │   ├── design-archetypes.md          # The 10 archetypes — full CSS tokens
@@ -164,7 +165,7 @@ web-design-enhancer-pro/
 ├── templates/
 │   ├── creative-brief-template.md    # Phase -1 point-of-view brief
 │   └── design-md-template.md         # DESIGN.md skeleton
-└── tests/                            # 264 tests
+└── tests/                            # 277 tests
     ├── test_audit_accessibility.py
     ├── test_audit_style_uniqueness.py
     ├── test_audit_beauty.py
@@ -180,5 +181,5 @@ web-design-enhancer-pro/
 
 ```bash
 py -m pytest tests/ -v
-# 264 tests — should display 264 passed
+# 277 tests — should display 277 passed
 ```
