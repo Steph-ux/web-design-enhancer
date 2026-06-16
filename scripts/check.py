@@ -45,6 +45,7 @@ DATA_DIR     = SCRIPTS_DIR.parent / "data"
 LOG_FILE     = Path(".phase-log.json")
 DESIGN_FILE  = Path("DESIGN.md")
 LOCK_FILE    = Path("structural-lock.md")
+BRIEF_FILE   = Path("CREATIVE-BRIEF.md")
 REFERENCES_CSV = DATA_DIR / "getdesign-references.csv"
 
 # Gates whose validity depends on the content of DESIGN.md
@@ -277,6 +278,110 @@ def _check_reference_diversity(getdesign_files):
     return warnings
 
 
+# --- Phase -1 — Creative Brief (point of view) -----------------------------
+
+_BRIEF_VAGUE_TERMS = [
+    "professional", "modern", "clean", "sleek", "elegant", "premium",
+    "minimalist", "beautiful", "nice", "simple", "user-friendly", "intuitive",
+]
+
+
+def _section_body(content: str, header: str) -> str:
+    """Return the text between '## header' and the next '## ' header (exclusive),
+    with HTML comment guidance stripped so it is not mistaken for real content."""
+    out, capturing = [], False
+    for ln in content.splitlines():
+        stripped = ln.strip()
+        if stripped.lower() == f"## {header}".lower():
+            capturing = True
+            continue
+        if capturing and stripped.startswith("## "):
+            break
+        if capturing:
+            out.append(ln)
+    body = "\n".join(out)
+    body = re.sub(r"<!--.*?-->", "", body, flags=re.DOTALL)
+    return body.strip()
+
+
+def _brief_field_filled(body: str) -> bool:
+    """Filled if real text remains after removing placeholders and empty checkboxes."""
+    t = body.replace("___", "").strip()
+    t = re.sub(r"^[-*]\s*\[\s*\].*$", "", t, flags=re.MULTILINE).strip()
+    return len(t) >= 8
+
+
+def check_creative_brief():
+    """Phase -1 — the Creative Brief enforces a point of view BEFORE Phase 0.
+
+    A getdesign reference says what a design *looks like*; it never says what it
+    must make someone *feel*, or what makes it un-generic. A model cannot invent
+    a point of view, so the user must impose one. This gate validates the
+    *presence and structure* of that point of view — never its quality (a gate
+    cannot tell an inspired brief from filler). It BLOCKS on missing/unfilled
+    fields and WARNS on vague-but-present content.
+
+    Returns (errors, warnings).
+    """
+    errors, warnings = [], []
+
+    if not BRIEF_FILE.exists():
+        fail(f"{BRIEF_FILE} missing — Phase -1 (point of view) must precede Phase 0")
+        info("Create it from templates/creative-brief-template.md and fill all four fields:")
+        info("  Emotional Intent | The One Unexpected Thing | Hero Dimension | The Broken Rule")
+        errors.append("CREATIVE-BRIEF.md missing")
+        return errors, warnings
+
+    content = BRIEF_FILE.read_text(encoding="utf-8")
+
+    # 1. Emotional Intent — present, filled, not buzzword-only.
+    emo = _section_body(content, "Emotional Intent")
+    if not _brief_field_filled(emo):
+        fail("CREATIVE-BRIEF.md: 'Emotional Intent' is empty or unfilled (___)")
+        errors.append("Creative Brief: Emotional Intent unfilled")
+    else:
+        low = emo.lower()
+        hits = [w for w in _BRIEF_VAGUE_TERMS if re.search(rf"\b{w}\b", low)]
+        if hits and len(emo.split()) <= 12:
+            warn(f"CREATIVE-BRIEF.md: 'Emotional Intent' leans on vague terms ({', '.join(hits)}).")
+            info("These are the generic defaults the skill exists to defeat. Make it concrete: "
+                 "'like walking into a Zurich architect's studio', not 'professional'.")
+            warnings.append("Creative Brief: Emotional Intent is vague")
+
+    # 2. The One Unexpected Thing — present and filled.
+    unexpected = _section_body(content, "The One Unexpected Thing")
+    if not _brief_field_filled(unexpected):
+        fail("CREATIVE-BRIEF.md: 'The One Unexpected Thing' is empty or unfilled")
+        errors.append("Creative Brief: The One Unexpected Thing unfilled")
+
+    # 3. Hero Dimension — exactly one box ticked.
+    hero = _section_body(content, "Hero Dimension")
+    ticked = len(re.findall(r"[-*]\s*\[[xX]\]", hero))
+    if ticked == 0:
+        fail("CREATIVE-BRIEF.md: 'Hero Dimension' has no box ticked — pick exactly ONE")
+        info("Tick one: Typography / Negative space / Colour / Motion / Illustration")
+        errors.append("Creative Brief: Hero Dimension not selected")
+    elif ticked > 1:
+        fail(f"CREATIVE-BRIEF.md: 'Hero Dimension' has {ticked} boxes ticked — pick exactly ONE")
+        info("Excess comes from going too far in ONE direction, not balancing several.")
+        errors.append("Creative Brief: more than one Hero Dimension selected")
+
+    # 4. The Broken Rule — present, filled, and has a 'because' (rule + rationale).
+    broken = _section_body(content, "The Broken Rule")
+    if not _brief_field_filled(broken):
+        fail("CREATIVE-BRIEF.md: 'The Broken Rule' is empty or unfilled")
+        errors.append("Creative Brief: The Broken Rule unfilled")
+    elif "because" not in broken.lower():
+        fail("CREATIVE-BRIEF.md: 'The Broken Rule' is missing its 'because' — "
+             "a broken rule without a reason is just a mistake")
+        info("Format: 'We ignore <rule> because <why breaking it IS the design>'.")
+        errors.append("Creative Brief: The Broken Rule has no rationale")
+
+    if not errors:
+        ok("Phase -1 Creative Brief: all four fields present and filled")
+    return errors, warnings
+
+
 # --- Gate 0 — Phase 0 execution proof --------------------------------------
 
 def check_gate0():
@@ -285,6 +390,10 @@ def check_gate0():
     print(f"{BOLD}{'='*60}{RESET}")
 
     errors = []
+
+    # Phase -1 — Creative Brief (point of view) must precede Phase 0.
+    brief_errors, _brief_warnings = check_creative_brief()
+    errors.extend(brief_errors)
 
     # 1. design-system-output.md
     ds_files = list(Path(".").glob("design-system-output*.md"))
