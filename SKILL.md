@@ -35,6 +35,25 @@ This skill is the **validator and enforcer** of the design ecosystem. It guarant
 
 ## Complete Workflow
 
+### ⚡ Phase -1 — Creative Brief (point of view, before Phase 0)
+
+**A reference tells the model what a design *looks like*. It never tells it what this design must make someone *feel*, or what makes it un-generic.** A model cannot invent a point of view — you must impose one. Phase -1 is the one step that is genuinely *yours*: a four-field brief written before any reference is pulled.
+
+> **This is a deliberate human-in-the-loop step.** Everything downstream of Phase 0 is automatic; Phase -1 is not. The skill cannot fabricate intent — feeding it a sharp brief is the highest-leverage thing you do, and a blank one guarantees a competent-but-forgettable result.
+
+Create `CREATIVE-BRIEF.md` from `templates/creative-brief-template.md` and fill all four fields:
+
+| Field | What it forces |
+|---|---|
+| **Emotional Intent** | One concrete sentence of what the visitor must *feel* — "a Zurich architect's studio", not "professional". |
+| **The One Unexpected Thing** | The visual bet nobody else would make for this project. If you can name another site that already does it, start over. |
+| **Hero Dimension** | The single dimension treated with deliberate excess (Typography / Negative space / Colour / Motion / Illustration). Exactly one. |
+| **The Broken Rule** | One rule you ignore *and why* breaking it IS the design. The "because" is what separates a choice from a mistake. |
+
+> **`check.py --gate 0` blocks** if `CREATIVE-BRIEF.md` is missing, any field is unfilled, no Hero Dimension (or more than one) is ticked, or the Broken Rule has no "because". The gate validates *presence and structure*, never quality — it cannot tell an inspired brief from filler, so vague terms ("professional", "modern") earn a **warning**, not a block. The judgement is yours; the gate only guarantees you made one.
+
+---
+
 ### ⚡ Phase 0 — Design Anchoring (mandatory, before any code)
 
 **Never create a DESIGN.md from scratch. Feed its creation from the two sources.**

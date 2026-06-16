@@ -19,7 +19,9 @@ The two sides work together: an **anti-template** gate penalises generic slop, a
 
 ## Usage — what you do
 
-You use the AI normally:
+You do **one** thing the skill cannot do for you: write a short **Creative Brief** (`CREATIVE-BRIEF.md`, four fields) that sets the point of view — what the page must make someone *feel*, the one unexpected bet, the hero dimension, the rule you deliberately break. A model can pick a style; it cannot invent intent. This is the one genuinely human-in-the-loop step.
+
+Then you use the AI normally:
 
 ```
 "Create a website for my premium cosmetics agency"
@@ -35,7 +37,7 @@ ivory + black palette, no blue/purple gradients.
 
 Then it codes with that precise style. At the end, it runs automatic validations — and if the result looks too much like a generic template, it is **blocked**.
 
-**You have nothing else to do.** The skill handles everything.
+**Everything after the brief is automatic.** You set the intent; the skill enforces the craft.
 
 ---
 
@@ -160,8 +162,9 @@ web-design-enhancer-pro/
 │   ├── gsap-best-practices.md        # GSAP animations
 │   └── threejs-best-practices.md     # WebGL scenes
 ├── templates/
+│   ├── creative-brief-template.md    # Phase -1 point-of-view brief
 │   └── design-md-template.md         # DESIGN.md skeleton
-└── tests/                            # 239 tests
+└── tests/                            # 250 tests
     ├── test_audit_accessibility.py
     ├── test_audit_style_uniqueness.py
     ├── test_audit_beauty.py
@@ -177,5 +180,5 @@ web-design-enhancer-pro/
 
 ```bash
 py -m pytest tests/ -v
-# 239 tests — should display 239 passed
+# 250 tests — should display 250 passed
 ```
