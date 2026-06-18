@@ -621,6 +621,16 @@ def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-r
             except Exception:
                 print(rj.stdout)
 
+    # 1b. audit_declared_antipatterns.py — enforce the project's OWN "Avoid" list
+    print(f"\n{CYAN}[1b/8] Enforcing project-declared antipatterns (DESIGN.md / design-system 'Avoid')...{RESET}")
+    decl_args = [sys.executable, str(SCRIPTS_DIR / "audit_declared_antipatterns.py"), "--design", "DESIGN.md"]
+    if code_path:
+        decl_args += ["--code", code_path]
+    rd = subprocess.run(decl_args, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    print(rd.stdout)
+    if rd.returncode == 1:
+        errors.append("audit_declared_antipatterns.py — the delivery contains an antipattern the project declared it would avoid")
+
     # 2. audit_spacing.py
     print(f"\n{CYAN}[2/8] 8px grid audit...{RESET}")
     spacing_path = code_path or "."
@@ -827,8 +837,12 @@ def evaluate_visual_gate(audit_output="./audit-results", code_path=None, verdict
             f"'{verdict_file}', then re-run check.py --final."
         )
     else:
+        # 'Waouh' bar: delivery requires a genuinely strong design, not merely a
+        # non-ugly one. Pass mark raised to 80 (the "strong, clearly human-crafted"
+        # calibration anchor) instead of the lenient 75.
         r = subprocess.run(
-            [sys.executable, str(SCRIPTS_DIR / "aesthetic_review.py"), "--verdict", str(verdict_file)],
+            [sys.executable, str(SCRIPTS_DIR / "aesthetic_review.py"),
+             "--verdict", str(verdict_file), "--threshold", "62", "80"],
             capture_output=True, text=True, encoding="utf-8", errors="replace"
         )
         if r.stdout:
@@ -844,6 +858,39 @@ def evaluate_visual_gate(audit_output="./audit-results", code_path=None, verdict
                 "aesthetic_review.py — NEEDS POLISH: rendered design acceptable but below the pass mark. "
                 "Address the top_fixes in the verdict."
             )
+
+        # Provenance + signature enforcement. The validity hole that let a 94/100
+        # self-grade ship terminal cosplay: the SAME model produced AND judged the
+        # design. A self/unknown-reviewed or idea-less verdict can NEVER authorize
+        # delivery — it must be independently or human-judged AND name one owned idea.
+        try:
+            v = json.loads(verdict_file.read_text(encoding="utf-8"))
+        except Exception:
+            v = None
+        if isinstance(v, dict):
+            reviewer = str(v.get("reviewer", "")).strip().lower()
+            if reviewer in {"", "self", "agent"}:
+                errors.append(
+                    f"aesthetic_review.py — PROVENANCE: the design was judged by the same model "
+                    f"that produced it (reviewer='{reviewer or 'unset'}'). Self-review is "
+                    f"structurally inflated and CANNOT authorize delivery. Get an INDEPENDENT "
+                    f"verdict (aesthetic_review.py --screenshots {audit_dir} --mode api --provider "
+                    f"<a different model>) or a HUMAN sign-off (--reviewer human)."
+                )
+            idea = v.get("memorable_idea")
+            has_idea = (isinstance(idea, str) and len(idea.strip()) >= 8
+                        and idea.strip().lower() not in {"null", "none", "n/a", "-"})
+            if not has_idea:
+                errors.append(
+                    "aesthetic_review.py — NO SIGNATURE: the verdict names no memorable, owned "
+                    "design idea (memorable_idea is empty). 'Clean and professional' is the floor, "
+                    "not a pass. Commit to one fearless, nameable move — see references/beauty-gestures.md."
+                )
+            if str(v.get("reads_as", "")).strip().lower() == "ai":
+                errors.append(
+                    "aesthetic_review.py — READS AS AI: the verdict itself says the page reads as AI "
+                    "output. Raise the craft until it reads as deliberate, human design."
+                )
     return errors, warnings, infos
 
 

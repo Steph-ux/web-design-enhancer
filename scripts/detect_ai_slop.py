@@ -178,6 +178,29 @@ class AISloPDetector:
         (r'class=["\'][^"\']*(?:console-log|system-console|log-terminal|terminal-output)[^"\']*["\']',
          "HTML class console-log/system-console — fake terminal component (§0d)"),
 
+        # G4b — Fake-terminal cosplay in SENTENCE case. These dodge every ALL_CAPS / SYS_*
+        # token rule above by using normal capitalisation, and slipped past the whole
+        # detector in a real delivery (the "Status is active" / "Transmit payload" portfolio).
+        (r'>\s*(?:System\s+)?Status\s+(?:is\s+)?(?:active|online|enabled|connected|live|operational)\s*<',
+         "Fake 'Status is active' indicator — unrequested system-status chrome, sentence-case AI slop (§0d)"),
+        (r'class=["\'][^"\']*\bstatus[-_](?:indicator|dot|text|light|led)\b[^"\']*["\']',
+         "HTML class 'status-indicator/status-dot/status-text' — decorative system-status chrome (§0d)"),
+        (r'System\s+(?:terminal|console)\s+connection\s*:',
+         "'System terminal connection:' — fake terminal chrome in footer/header, never requested (§0d)"),
+        (r'>\s*System\s+Initialization\s*<',
+         "'System Initialization' kicker — fake boot-sequence cosplay, AI signal (§0d)"),
+        (r'(?:>|aria-label=["\'])\s*(?:Transmit|Initialize|Initialise)\s+(?:payload|session|sequence|protocol|contact\s+session)\b',
+         "Terminal-cosplay verb on a UI control ('Transmit payload', 'Initialize session') — fake-system language instead of a plain label (§0d)"),
+        (r'>\s*Session\s+payload\s*:?\s*<',
+         "'Session payload' label — fake terminal field name instead of a plain UI label (§0d)"),
+
+        # SEC1 — Hardcoded credentials / API keys in delivered output (even 'example' keys
+        # used as decoration — ironic on the "appsec" card that shipped one).
+        (r'\bAKIA[0-9A-Z]{16}\b',
+         "Hardcoded AWS access key (AKIA…) in delivered output — never ship credentials, not even example keys (§0b)"),
+        (r'(?:api[_-]?key|secret|access[_-]?key|auth[_-]?token|password)\s*[=:]\s*["\'][A-Za-z0-9_\-]{12,}["\']',
+         "Hardcoded credential literal (api_key/secret/token = \"…\") — never embed secrets in delivered code (§0b)"),
+
         # G5 — ALL_CAPS operational labels (PILOTE AUTOMATIQUE, AUTOMATIQUE (FERMÉ)…)
         (r'PILOTE\s+AUTOMATIQUE',
          "PILOTE AUTOMATIQUE — industrial ALL_CAPS operational label, AI injection (§0d)"),

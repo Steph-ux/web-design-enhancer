@@ -1,5 +1,30 @@
 # Changelog
 
+## Gate hardening — closing the self-validation loophole
+
+A real delivery (a "systems engineer" portfolio) passed every gate, self-scored
+94/100, and printed DELIVERY AUTHORIZED — while shipping a "Status is active"
+badge, "System terminal connection: closed" footer, "Transmit payload" form
+labels (terminal cosplay), and a hardcoded AWS access key. Root cause: the
+slop detector matched a fixed token list (dodged by sentence-case phrasing) and
+the aesthetic gate let the GENERATING model grade its own work.
+
+### Added
+- `scripts/audit_declared_antipatterns.py` — new gate [1b] that reads each
+  project's OWN "Avoid" list (DESIGN.md antipatterns + design-system-output)
+  and blocks if a self-declared antipattern token appears in the delivery.
+- 5 tests in `test_check_visual_gate.py` covering provenance + signature rules.
+
+### Changed
+- `detect_ai_slop.py` — new patterns for sentence-case fake-terminal chrome
+  ("Status is active", "System terminal connection", "Transmit payload",
+  "Session payload", "System Initialization"), `status-indicator/-dot/-text`
+  classes, and hardcoded credentials (AWS `AKIA…` keys, `api_key/secret = "…"`).
+- `check.py` visual gate — a verdict whose `reviewer` is `self`/`agent`/unset can
+  **no longer authorize delivery** (independent or human sign-off required); a
+  verdict with no named `memorable_idea` is blocked ("clean" is the floor, not a
+  pass); `reads_as: ai` is blocked. Delivery pass mark raised 75 → **80**.
+
 ## Beauty system — from "not generic" to "magnificent"
 
 The suite was already strong at *prohibiting* AI slop (6 gates, slop detector,

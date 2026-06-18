@@ -35,6 +35,9 @@ def _passing_verdict(audit_dir):
         "overall_score": 88,
         "verdict": "Confident, restrained, clearly human-designed.",
         "reads_as": "human",
+        # Delivery now requires INDEPENDENT/human provenance and a named signature idea.
+        "reviewer": "independent",
+        "memorable_idea": "Oversized off-white serif headline anchored to a single acid-green rule.",
         "dimensions": {k: {"score": 85, "note": "ok"} for k in [
             "first_impression", "typography", "colour", "spacing",
             "hierarchy", "polish", "human_signal"]},
@@ -90,5 +93,76 @@ def test_clean_report_and_passing_verdict_passes(tmp_path):
     aud = tmp_path / "audit-results"
     _clean_report(aud)
     _passing_verdict(aud)
+    errors, _, _ = mod.evaluate_visual_gate(audit_output=str(aud))
+    assert errors == []
+
+
+# --- Provenance + signature enforcement (hardening: self-review can't deliver) ---
+
+def _verdict(audit_dir, **overrides):
+    base = {
+        "overall_score": 88,
+        "verdict": "Confident, restrained, clearly human-designed.",
+        "reads_as": "human",
+        "reviewer": "independent",
+        "memorable_idea": "Oversized off-white serif headline anchored to a single acid-green rule.",
+        "dimensions": {k: {"score": 85, "note": "ok"} for k in [
+            "first_impression", "typography", "colour", "spacing",
+            "hierarchy", "polish", "human_signal"]},
+        "top_fixes": ["Balance the hero", "Give cards a signature accent"],
+    }
+    base.update(overrides)
+    (audit_dir / "aesthetic-verdict.json").write_text(json.dumps(base))
+
+
+def test_self_review_cannot_authorize_delivery(tmp_path):
+    mod = _load()
+    aud = tmp_path / "audit-results"
+    _clean_report(aud)
+    _verdict(aud, reviewer="self")
+    errors, _, _ = mod.evaluate_visual_gate(audit_output=str(aud))
+    assert any("PROVENANCE" in e for e in errors)
+
+
+def test_missing_reviewer_field_blocks(tmp_path):
+    mod = _load()
+    aud = tmp_path / "audit-results"
+    _clean_report(aud)
+    v = {
+        "overall_score": 90, "verdict": "x", "reads_as": "human",
+        "memorable_idea": "A real owned idea worth naming here.",
+        "dimensions": {k: {"score": 88, "note": "ok"} for k in [
+            "first_impression", "typography", "colour", "spacing",
+            "hierarchy", "polish", "human_signal"]},
+        "top_fixes": ["a", "b"],
+    }
+    (aud / "aesthetic-verdict.json").write_text(json.dumps(v))
+    errors, _, _ = mod.evaluate_visual_gate(audit_output=str(aud))
+    assert any("PROVENANCE" in e for e in errors)
+
+
+def test_no_memorable_idea_blocks(tmp_path):
+    mod = _load()
+    aud = tmp_path / "audit-results"
+    _clean_report(aud)
+    _verdict(aud, memorable_idea=None)
+    errors, _, _ = mod.evaluate_visual_gate(audit_output=str(aud))
+    assert any("NO SIGNATURE" in e for e in errors)
+
+
+def test_reads_as_ai_blocks(tmp_path):
+    mod = _load()
+    aud = tmp_path / "audit-results"
+    _clean_report(aud)
+    _verdict(aud, reads_as="ai")
+    errors, _, _ = mod.evaluate_visual_gate(audit_output=str(aud))
+    assert any("READS AS AI" in e for e in errors)
+
+
+def test_independent_with_signature_passes(tmp_path):
+    mod = _load()
+    aud = tmp_path / "audit-results"
+    _clean_report(aud)
+    _verdict(aud)  # independent + named idea + reads_as human + score 88
     errors, _, _ = mod.evaluate_visual_gate(audit_output=str(aud))
     assert errors == []
