@@ -238,6 +238,24 @@ class AISloPDetector:
         (r'(?:class|className)=[^>]*(?:testimonial[-_]card|review[-_]card|quote[-_]card|testimonial[-_]item)',
          "Testimonial/review card class — hardcoded testimonials are AI fabrication (§0b)"),
 
+        # ── taste-skill AI Tells, mechanized (self-checked there → enforced here) ──
+        # T-EM — em-dash: taste-skill's #1 AI tell. Flag em-dash in VISIBLE text
+        # (between > and <), not inside tags/attributes.
+        (r'>[^<]*\u2014[^<]*<',
+         "Em-dash (—) in visible page text — taste-skill's #1 AI tell; use a colon, comma, or rewrite (§9.G)"),
+        # T-SCROLL — scroll cues ("Scroll", "↓ scroll", "Scroll to explore")
+        (r'>\s*(?:\u2193\s*)?Scroll(?:\s+(?:down|to\s+explore|for\s+more))?\s*(?:\u2193)?\s*<',
+         "Scroll cue ('Scroll', 'Scroll to explore') — AI tell; a good page invites scrolling by design (§9)"),
+        # T-VER — version/build labels on a marketing page (v1.4.2, Build 0048, BETA…)
+        (r'>\s*(?:v\d+\.\d+(?:\.\d+)?|build\s*\d{2,}|V\d+\.\d+|INVITE[-\s]?ONLY)\s*<',
+         "Version/build/INVITE-ONLY label — AI tell on a marketing page unless the brief is a launch (§9)"),
+        # T-SECNUM — section-numbering eyebrows (00 / INDEX, 06 · how it works)
+        (r'>\s*0\d{1,2}\s*[/·.\u2014\-]\s*[A-Za-z]',
+         "Section-numbering eyebrow ('00 / INDEX', '06 · how it works') — overused AI tell (§9)"),
+        # T-FAKE — placeholder identities (Jane/John Doe, Acme, "Quietly in use at")
+        (r'\b(?:Jane|John)\s+Doe\b|\bAcme\s+(?:Inc|Corp|Co|Labs)\b|Quietly\s+in\s+use\s+at',
+         "Placeholder identity (Jane Doe / Acme / 'Quietly in use at') — AI 'Jane Doe' content tell (§9.D)"),
+
         # (H1 viewport check moved to a dedicated, case-correct check in _detect_html_slop)
 
         # H2 — CSS hardcoded hex colors bypassing custom properties (B6)

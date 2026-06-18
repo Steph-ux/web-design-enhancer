@@ -377,8 +377,51 @@ def check_creative_brief():
         info("Format: 'We ignore <rule> because <why breaking it IS the design>'.")
         errors.append("Creative Brief: The Broken Rule has no rationale")
 
+    # 5. Design Dials — three numeric dials (taste-skill VARIANCE/MOTION/DENSITY),
+    #    reasoned from the brief, not silently left blank. "Waouh" comes from
+    #    pushing ONE dial far; a brief with no dials cannot commit to that.
+    dials_body = _section_body(content, "Design Dials")
+    found_dials = {}
+    for dial in ("VARIANCE", "MOTION", "DENSITY"):
+        m = re.search(rf"{dial}\s*:\s*(\d{{1,2}})\b", dials_body, re.IGNORECASE)
+        if m and 1 <= int(m.group(1)) <= 10:
+            found_dials[dial] = int(m.group(1))
+    missing_dials = [d for d in ("VARIANCE", "MOTION", "DENSITY") if d not in found_dials]
+    if missing_dials:
+        fail(f"CREATIVE-BRIEF.md: 'Design Dials' missing valid 1-10 value(s) for: {', '.join(missing_dials)}")
+        info("Set all three, reasoned from the Design Read: VARIANCE / MOTION / DENSITY (each 1-10).")
+        errors.append("Creative Brief: Design Dials incomplete")
+    elif max(found_dials.values()) - min(found_dials.values()) <= 1:
+        warn("CREATIVE-BRIEF.md: all three dials are nearly equal — that is the averaged, "
+             "templated look. Push ONE dial far so a single dimension can shout.")
+        warnings.append("Creative Brief: dials too balanced for a memorable result")
+
+    # 6. The Cross-Domain Steal — a reference from OUTSIDE software. A tech/SaaS
+    #    reference here defeats the mechanism (it is how every AI page converges
+    #    on the same SF-SaaS look). Structure BLOCKS; a tech reference WARNS.
+    steal = _section_body(content, "The Cross-Domain Steal")
+    if not _brief_field_filled(steal):
+        fail("CREATIVE-BRIEF.md: 'The Cross-Domain Steal' is empty or unfilled")
+        info("Name a NON-software reference (print, industrial design, cinema, signage, "
+             "architecture, fashion) and the one move you steal from it.")
+        errors.append("Creative Brief: The Cross-Domain Steal unfilled")
+    else:
+        _TECH_REF = [
+            "website", "web app", "webapp", "saas", "dashboard", "landing page",
+            "app store", "mobile app", "ui kit", "design system", "framer",
+            "figma", "dribbble", "behance", "linear", "vercel", "stripe",
+            "notion", "github", "tailwind", "shadcn", "bootstrap", "material ui",
+        ]
+        low = steal.lower()
+        tech_hits = [t for t in _TECH_REF if t in low]
+        if tech_hits:
+            warn(f"CREATIVE-BRIEF.md: 'The Cross-Domain Steal' references software/web ({', '.join(tech_hits)}). "
+                 "That defeats the point — steal from OUTSIDE the category (print, industrial design, "
+                 "cinema, signage, architecture) or the result converges on the generic SaaS look.")
+            warnings.append("Creative Brief: Cross-Domain Steal is still a tech reference")
+
     if not errors:
-        ok("Phase -1 Creative Brief: all four fields present and filled")
+        ok("Phase -1 Creative Brief: all six fields present and filled")
     return errors, warnings
 
 

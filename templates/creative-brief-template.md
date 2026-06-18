@@ -59,3 +59,42 @@ Both halves are required: WHAT rule, and WHY breaking it IS the design.
 because the tension between the two IS the design.")
 The 'because' is what separates a deliberate choice from a mistake.
 -->
+
+## Design Read
+
+Reading this as: ___ for ___, with a ___ language, leaning toward ___.
+
+<!--
+One line, declared BEFORE any code (taste-skill's "Design Read"). Name the
+page kind, the audience, the vibe, and the design-system/aesthetic family.
+Example: "a solo designer portfolio for hiring managers, with an editorial /
+kinetic-type language, leaning toward native CSS + scroll-driven motion."
+The audience picks the aesthetic — not your taste.
+-->
+
+## Design Dials
+
+- VARIANCE: ___   <!-- 1 = perfect symmetry … 10 = artsy chaos -->
+- MOTION: ___     <!-- 1 = static … 10 = cinematic / physics -->
+- DENSITY: ___    <!-- 1 = art-gallery airy … 10 = cockpit / packed -->
+
+<!--
+Three numbers, reasoned from the Design Read (not silently left at baseline).
+"Waouh" comes from pushing ONE dial far, not from balancing all three.
+Baseline if nothing overrides: 8 / 6 / 4. Trust-first / public-sector: 3 / 2 / 5.
+-->
+
+## The Cross-Domain Steal
+
+The non-software discipline I am stealing one move from: ___
+The specific move: ___
+
+<!--
+World-class design steals from OUTSIDE its category. Name a reference that is
+NOT a website / app / SaaS / dev-tool: print editorial, industrial design,
+cinema, signage, packaging, architecture, fashion, exhibition design.
+("Stealing Penguin Books' 1960s grid: the 3-band horizontal colour split as
+the hero composition.") If your reference is another tech site, start over —
+that is how every AI page ends up looking like the same San-Francisco SaaS.
+-->
+

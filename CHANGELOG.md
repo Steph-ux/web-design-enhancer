@@ -1,5 +1,24 @@
 # Changelog
 
+## Taste bridge — generative "waouh" lever + mechanized AI-tells
+
+Gates reject ugliness; they do not create beauty. This wave adds the upstream,
+generative half (ported from the ideas in taste-skill) and turns its
+self-checked pre-flight items into REAL detectors.
+
+### Added — Creative Brief (Phase -1) now drives the design
+- `Design Read` one-liner, three `Design Dials` (VARIANCE / MOTION / DENSITY,
+  1-10, reasoned from the brief — "waouh" comes from pushing ONE dial far), and
+  a `The Cross-Domain Steal` field (a NON-software reference to steal one move
+  from). `check.py` blocks on missing dials / unfilled steal, warns when the
+  dials are too balanced or the steal is still a tech reference.
+- 4 brief tests.
+
+### Changed — `detect_ai_slop.py` mechanizes taste-skill's AI Tells
+Self-checked there → enforced here: em-dash in visible text (their #1 tell),
+scroll cues, version/build/INVITE-ONLY labels, section-numbering eyebrows
+('00 / INDEX'), and placeholder identities (Jane Doe / Acme / "Quietly in use at").
+
 ## Gate hardening — closing the self-validation loophole
 
 A real delivery (a "systems engineer" portfolio) passed every gate, self-scored

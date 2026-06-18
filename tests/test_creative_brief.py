@@ -36,6 +36,14 @@ The only imagery is the developer's own ASCII commit-graph rendered huge as hero
 - [ ] Illustration
 ## The Broken Rule
 We ignore the 8px grid on the H1 because the tension with 15px body IS the design.
+## Design Read
+Reading this as: a developer portfolio for hiring managers, with an editorial / kinetic-type language, leaning toward native CSS + scroll-driven motion.
+## Design Dials
+- VARIANCE: 8
+- MOTION: 4
+- DENSITY: 3
+## The Cross-Domain Steal
+Stealing from Penguin Books' 1960s paperback grid: the three-band horizontal colour split as the hero composition.
 """
 
 
@@ -149,3 +157,44 @@ def test_blank_template_blocks(in_tmp):
     _write(in_tmp, _TEMPLATE.read_text(encoding="utf-8"))
     errors, _ = c.check_creative_brief()
     assert errors  # unfilled ___ and no ticked box
+
+
+# --- Dials + Cross-Domain Steal (taste-skill bridge) -----------------------
+
+def test_missing_dials_blocks(in_tmp):
+    c = _load()
+    _write(in_tmp, _GOOD.replace("- VARIANCE: 8\n", ""))
+    errors, _ = c.check_creative_brief()
+    assert any("Design Dials incomplete" in e for e in errors)
+
+
+def test_balanced_dials_warn_not_block(in_tmp):
+    c = _load()
+    flat = _GOOD.replace("- VARIANCE: 8", "- VARIANCE: 5") \
+                .replace("- MOTION: 4", "- MOTION: 5") \
+                .replace("- DENSITY: 3", "- DENSITY: 4")
+    _write(in_tmp, flat)
+    errors, warnings = c.check_creative_brief()
+    assert errors == []
+    assert any("too balanced" in w for w in warnings)
+
+
+def test_cross_domain_steal_unfilled_blocks(in_tmp):
+    c = _load()
+    no_steal = _GOOD.replace(
+        "Stealing from Penguin Books' 1960s paperback grid: the three-band horizontal colour split as the hero composition.",
+        "___")
+    _write(in_tmp, no_steal)
+    errors, _ = c.check_creative_brief()
+    assert any("Cross-Domain Steal unfilled" in e for e in errors)
+
+
+def test_tech_cross_domain_steal_warns(in_tmp):
+    c = _load()
+    techy = _GOOD.replace(
+        "Stealing from Penguin Books' 1960s paperback grid: the three-band horizontal colour split as the hero composition.",
+        "Stealing Linear's website hero layout and Stripe's gradient.")
+    _write(in_tmp, techy)
+    errors, warnings = c.check_creative_brief()
+    assert errors == []
+    assert any("still a tech reference" in w for w in warnings)
