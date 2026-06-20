@@ -1,6 +1,6 @@
 ---
 name: web-design-enhancer
-description: Validator and enforcer of the DESIGN.md contract. Pillar 3 of the design ecosystem — the two upstream pillars (getdesign.md real visual references + UI/UX Pro Max sectoral design intelligence) are MANDATORY before any code. Eliminates AI visual improvisation through 8 sequential validation gates (incl. a non-bypassable rendered visual + vision pass), GSAP, and a Playwright audit on 4 breakpoints.
+description: Validator and enforcer of the DESIGN.md contract. Pillar 3 of the design ecosystem — the two upstream pillars (getdesign.md real visual references + UI/UX Pro Max sectoral design intelligence) are MANDATORY before any code. Eliminates AI visual improvisation through 9 sequential validation gates (incl. a signature-gesture enforcer that blocks "tokens without gestures", and a non-bypassable rendered visual + vision pass), GSAP, and a Playwright audit on 4 breakpoints.
 ---
 
 # Web Design Enhancer
@@ -50,7 +50,7 @@ Create `CREATIVE-BRIEF.md` from `templates/creative-brief-template.md` and fill 
 | **Hero Dimension** | The single dimension treated with deliberate excess (Typography / Negative space / Colour / Motion / Illustration). Exactly one. |
 | **The Broken Rule** | One rule you ignore *and why* breaking it IS the design. The "because" is what separates a choice from a mistake. |
 
-> **`check.py --gate 0` blocks** if `CREATIVE-BRIEF.md` is missing, any field is unfilled, no Hero Dimension (or more than one) is ticked, or the Broken Rule has no "because". The gate validates *presence and structure*, never quality — it cannot tell an inspired brief from filler, so vague terms ("professional", "modern") earn a **warning**, not a block. The judgement is yours; the gate only guarantees you made one.
+> **`check.py --gate 0` blocks** if `CREATIVE-BRIEF.md` is missing, any field is unfilled, no Hero Dimension (or more than one) is ticked, or the Broken Rule has no "because". A second, deeper layer (`audit_brief.py`) then **scores the brief's quality 0-100** — concreteness of the Emotional Intent, whether the Cross-Domain Steal is a genuinely non-software discipline, whether a Design Dial is pushed to an extreme — and **blocks below the floor (50/100)**. So a vague-but-structurally-complete brief no longer slips through: "professional / modern / clean" scores as filler and is stopped. The judgement of *what* point of view to take is still yours; the gates now guarantee it is both present AND sharp.
 
 ---
 
@@ -437,7 +437,7 @@ It scores 7 dimensions an eye judges in the first seconds (first impression, hie
 
 ### Phase 5 — Automated Validation (mandatory before delivery)
 
-Run the final gate — it orchestrates all **8 gates** in sequence (7 static + 1 rendered visual/vision pass):
+Run the final gate — it orchestrates all **9 gates** in sequence (8 static + 1 rendered visual/vision pass):
 
 | Step | Tool | What it checks |
 |---|---|---|
@@ -448,7 +448,8 @@ Run the final gate — it orchestrates all **8 gates** in sequence (7 static + 1
 | 5 | `audit_accessibility.py` | WCAG 2.1 AA — img alt, button type, input labels, div onclick, html lang, viewport meta |
 | 6 | `audit_style_uniqueness.py` | Generic AI template detection — score must be ≤ 65 |
 | 7 | `audit_beauty.py` | Positive craft floor — Beauty Score must be ≥ 50 (blocks clean-but-soulless designs) |
-| 8 | `visual_audit.py` + `aesthetic_review.py` | **Rendered pass (mandatory):** requires a fresh `audit_report.json` with a clean rendered DOM **and** a passing aesthetic verdict (`reads_as: human`, score ≥ pass). Blocks delivery if missing, stale, or below floor. |
+| 8 | `audit_gestures.py` | **Signature-gesture enforcement:** the committed archetype's signature gestures (from `beauty-gestures.md`) must actually be in the code. Catches "tokens without gestures" — adopting an archetype's look without its craft. Auto-detects the archetype from the DESIGN.md font pairing or via `--archetype`. Blocks when < 2 of 3 gestures are present. |
+| 9 | `visual_audit.py` + `aesthetic_review.py` | **Rendered pass (mandatory):** requires a fresh `audit_report.json` with a clean rendered DOM **and** a passing aesthetic verdict (`reads_as: human`, score ≥ pass). Blocks delivery if missing, stale, or below floor. |
 
 ```bash
 python3 scripts/check.py --final --code ./src --url http://localhost:3000
@@ -536,4 +537,7 @@ The output is a JSON object with a `violations` array. Each entry contains:
 | `scripts/aesthetic_review.py` | Aesthetic judgment of rendered screenshots — the agent judges with its OWN vision by default (no key); external model optional via --mode api |
 | `scripts/diff_design_vs_code.py` | Diff DESIGN.md ↔ code (colors, fonts, animations) |
 | `scripts/audit_beauty.py` | Beauty Score (0-100) — rewards type-scale contrast, hierarchy, signature colour, spacing rhythm, finition. Blocks below 50 |
+| `scripts/audit_brief.py` | Phase -1 quality layer — scores the Creative Brief 0-100 (Emotional Intent concreteness, non-software Cross-Domain Steal, dials pushed to an extreme, etc.). Blocks below 50. Closes the "a tepid brief passes" hole in gate 0 |
+| `scripts/audit_gestures.py` | Gate 9 — enforces the committed archetype's signature gestures (`beauty-gestures.md`) are actually implemented in code (raw CSS or Tailwind/JSX). Catches "tokens without gestures". Auto-detects archetype from the font pairing or `--archetype` |
+| `scripts/audit_wow.py` | Opt-in WOW gate (`check.py --final --wow`) — scores 0-100 how far the design pushes its ONE hero dimension into deliberate excess (huge type / extreme whitespace / bold colour / scroll motion / hero imagery) + 3/3 gestures + an extreme dial + an owned signature move. Floors-passing "clean" can still be merely competent; this rewards committing. NOT for trust-first/public-sector work |
 | `.slop-ignore` | Whitelist against false positives for detect_ai_slop.py |

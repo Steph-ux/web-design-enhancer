@@ -438,6 +438,23 @@ def check_gate0():
     brief_errors, _brief_warnings = check_creative_brief()
     errors.extend(brief_errors)
 
+    # Phase -1 quality layer — score the brief's point of view, not just its structure.
+    # check_creative_brief validates presence/structure ("cannot tell inspired from filler");
+    # audit_brief.py closes that hole by scoring concreteness, the cross-domain steal, etc.
+    if BRIEF_FILE.exists():
+        brief_q = SCRIPTS_DIR / "audit_brief.py"
+        if brief_q.exists():
+            rq = subprocess.run(
+                [sys.executable, str(brief_q), "--brief", str(BRIEF_FILE)],
+                capture_output=True, text=True, encoding="utf-8", errors="replace"
+            )
+            print(rq.stdout)
+            if rq.returncode == 1:
+                errors.append(
+                    "audit_brief.py — BLOCKED: the Creative Brief scores below the quality floor "
+                    "(filler, not a point of view). Sharpen it before Phase 0."
+                )
+
     # 1. design-system-output.md
     ds_files = list(Path(".").glob("design-system-output*.md"))
     if ds_files:
@@ -620,7 +637,7 @@ def check_gate2():
 
 # --- Final Gate — Full validation before delivery --------------------------
 
-def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-results", verdict=None):
+def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-results", verdict=None, wow=False):
     print(f"\n{BOLD}{'='*60}{RESET}")
     print(f"{BOLD}  FINAL GATE — Validation before delivery{RESET}")
     print(f"{BOLD}{'='*60}{RESET}")
@@ -643,7 +660,7 @@ def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-r
     errors = []
 
     # 1. detect_ai_slop.py
-    print(f"\n{CYAN}[1/8] Detecting AI antipatterns (HTML + CSS + JSX + code quality)...{RESET}")
+    print(f"\n{CYAN}[1/9] Detecting AI antipatterns (HTML + CSS + JSX + code quality)...{RESET}")
     slop_args = [sys.executable, str(SCRIPTS_DIR / "detect_ai_slop.py"), "--design", "DESIGN.md"]
     if code_path:
         slop_args += ["--code", code_path]
@@ -665,7 +682,7 @@ def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-r
                 print(rj.stdout)
 
     # 1b. audit_declared_antipatterns.py — enforce the project's OWN "Avoid" list
-    print(f"\n{CYAN}[1b/8] Enforcing project-declared antipatterns (DESIGN.md / design-system 'Avoid')...{RESET}")
+    print(f"\n{CYAN}[1b/9] Enforcing project-declared antipatterns (DESIGN.md / design-system 'Avoid')...{RESET}")
     decl_args = [sys.executable, str(SCRIPTS_DIR / "audit_declared_antipatterns.py"), "--design", "DESIGN.md"]
     if code_path:
         decl_args += ["--code", code_path]
@@ -675,7 +692,7 @@ def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-r
         errors.append("audit_declared_antipatterns.py — the delivery contains an antipattern the project declared it would avoid")
 
     # 2. audit_spacing.py
-    print(f"\n{CYAN}[2/8] 8px grid audit...{RESET}")
+    print(f"\n{CYAN}[2/9] 8px grid audit...{RESET}")
     spacing_path = code_path or "."
     r = subprocess.run(
         [sys.executable, str(SCRIPTS_DIR / "audit_spacing.py"), "--path", spacing_path],
@@ -686,7 +703,7 @@ def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-r
         errors.append("audit_spacing.py — 8px grid violations")
 
     # 3. validate_design.py (final pass)
-    print(f"\n{CYAN}[3/8] Final DESIGN.md validation...{RESET}")
+    print(f"\n{CYAN}[3/9] Final DESIGN.md validation...{RESET}")
     vd_args = [sys.executable, str(SCRIPTS_DIR / "validate_design.py"), "DESIGN.md"]
     if code_path:
         vd_args += ["--code", code_path]  # enables §11 signature-gesture verification
@@ -699,7 +716,7 @@ def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-r
         errors.append("validate_design.py — DESIGN.md contract not respected")
 
     # 4. diff_design_vs_code.py
-    print(f"\n{CYAN}[4/8] DESIGN.md <-> code diff...{RESET}")
+    print(f"\n{CYAN}[4/9] DESIGN.md <-> code diff...{RESET}")
     if code_path:
         r = subprocess.run(
             [sys.executable, str(SCRIPTS_DIR / "diff_design_vs_code.py"), "DESIGN.md", "--code", code_path],
@@ -712,7 +729,7 @@ def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-r
         warn("diff_design_vs_code.py skipped (no --code provided)")
 
     # 5. audit_accessibility.py
-    print(f"\n{CYAN}[5/8] WCAG 2.1 AA accessibility audit...{RESET}")
+    print(f"\n{CYAN}[5/9] WCAG 2.1 AA accessibility audit...{RESET}")
     a11y_script = SCRIPTS_DIR / "audit_accessibility.py"
     if a11y_script.exists():
         a11y_args = [sys.executable, str(a11y_script)]
@@ -730,7 +747,7 @@ def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-r
         warn("audit_accessibility.py not found — skipping accessibility check")
 
     # 6. audit_style_uniqueness.py
-    print(f"\n{CYAN}[6/8] Style uniqueness audit (Generic AI Template detector)...{RESET}")
+    print(f"\n{CYAN}[6/9] Style uniqueness audit (Generic AI Template detector)...{RESET}")
     uniqueness_script = SCRIPTS_DIR / "audit_style_uniqueness.py"
     if uniqueness_script.exists():
         uniq_args = [sys.executable, str(uniqueness_script), "--path", code_path or "."]
@@ -749,7 +766,7 @@ def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-r
         warn("audit_style_uniqueness.py not found — skipping style uniqueness check")
 
     # 7. audit_beauty.py — positive craft floor (blocks soulless-but-clean designs)
-    print(f"\n{CYAN}[7/8] Beauty audit (craft & finish — blocks clean-but-soulless)...{RESET}")
+    print(f"\n{CYAN}[7/9] Beauty audit (craft & finish — blocks clean-but-soulless)...{RESET}")
     beauty_script = SCRIPTS_DIR / "audit_beauty.py"
     if beauty_script.exists():
         beauty_args = [sys.executable, str(beauty_script), "--path", code_path or "."]
@@ -768,8 +785,25 @@ def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-r
     else:
         warn("audit_beauty.py not found — skipping beauty check")
 
-    # 8. Visual + aesthetic verification (Phase 4) — rendered DOM + vision judgment (mandatory)
-    print(f"\n{CYAN}[8/8] Visual + aesthetic verification (rendered DOM + vision)...{RESET}")
+    # 8. audit_gestures.py — signature-gesture enforcement per archetype (Gate 9)
+    print(f"\n{CYAN}[8/9] Signature-gesture enforcement (archetype craft, not just tokens)...{RESET}")
+    gestures_script = SCRIPTS_DIR / "audit_gestures.py"
+    if gestures_script.exists():
+        g_args = [sys.executable, str(gestures_script), "--code", code_path or ".", "--design", "DESIGN.md"]
+        if verbose:
+            g_args += ["--json"]
+        r = subprocess.run(g_args, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        print(r.stdout)
+        if r.returncode == 1:
+            errors.append(
+                "audit_gestures.py — BLOCKED: the committed archetype's signature gestures are missing "
+                "(tokens without gestures). Implement them — see references/beauty-gestures.md."
+            )
+    else:
+        warn("audit_gestures.py not found — skipping signature-gesture check")
+
+    # 9. Visual + aesthetic verification (Phase 4) — rendered DOM + vision judgment (mandatory)
+    print(f"\n{CYAN}[9/9] Visual + aesthetic verification (rendered DOM + vision)...{RESET}")
     v_errors, v_warnings, v_infos = evaluate_visual_gate(
         audit_output=audit_output, code_path=code_path, verdict=verdict, url=url
     )
@@ -780,6 +814,25 @@ def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-r
     for _e in v_errors:
         fail(_e)
     errors.extend(v_errors)
+
+    # Optional WOW gate — only when --wow is requested. Rewards deliberate excess
+    # in the ONE hero dimension; a floor-passing design can still be "merely competent".
+    if wow:
+        print(f"\n{CYAN}[WOW] Deliberate-excess audit (opt-in)...{RESET}")
+        wow_script = SCRIPTS_DIR / "audit_wow.py"
+        if wow_script.exists():
+            w_args = [sys.executable, str(wow_script), "--code", code_path or ".", "--design", "DESIGN.md"]
+            if verbose:
+                w_args += ["--json"]
+            r = subprocess.run(w_args, capture_output=True, text=True, encoding="utf-8", errors="replace")
+            print(r.stdout)
+            if r.returncode != 0:
+                errors.append(
+                    "audit_wow.py — BELOW WAOUH: the design balances instead of committing to one hero "
+                    "dimension. Push it (see references/beauty-gestures.md), or drop --wow if restraint is intended."
+                )
+        else:
+            warn("audit_wow.py not found — skipping WOW audit")
 
     _print_result(errors, "FINAL GATE")
     if not errors:
@@ -984,6 +1037,8 @@ def main():
                         help="Directory holding visual_audit report + screenshots + aesthetic verdict")
     parser.add_argument("--verdict", type=str, default=None,
                         help="Path to the aesthetic verdict JSON (default: <audit-output>/aesthetic-verdict.json)")
+    parser.add_argument("--wow", action="store_true",
+                        help="Add the opt-in WOW gate (audit_wow.py): rewards deliberate excess in the hero dimension")
     args = parser.parse_args()
 
     if args.gate == 0:
@@ -994,7 +1049,7 @@ def main():
         success = check_gate2()
     elif args.final:
         success = check_final(args.code, verbose=args.verbose, url=args.url,
-                              audit_output=args.audit_output, verdict=args.verdict)
+                              audit_output=args.audit_output, verdict=args.verdict, wow=args.wow)
 
     sys.exit(0 if success else 1)
 
