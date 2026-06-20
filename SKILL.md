@@ -1,6 +1,6 @@
 ---
 name: web-design-enhancer
-description: Validator and enforcer of the DESIGN.md contract. Pillar 3 of the design ecosystem — the two upstream pillars (getdesign.md real visual references + UI/UX Pro Max sectoral design intelligence) are MANDATORY before any code. Eliminates AI visual improvisation through 9 sequential validation gates (incl. a signature-gesture enforcer that blocks "tokens without gestures", and a non-bypassable rendered visual + vision pass), GSAP, and a Playwright audit on 4 breakpoints.
+description: Validator and enforcer of the DESIGN.md contract. Pillar 3 of the design ecosystem — the two upstream pillars (getdesign.md real visual references + UI/UX Pro Max sectoral design intelligence) are MANDATORY before any code. Eliminates AI visual improvisation through 10 sequential validation gates (incl. a signature-gesture enforcer that blocks "tokens without gestures", a non-bypassable rendered visual + vision pass, and a measured layout-integrity gate that blocks horizontal overflow and ragged grid alignment), GSAP, and a Playwright audit on 4 breakpoints.
 ---
 
 # Web Design Enhancer
@@ -437,7 +437,7 @@ It scores 7 dimensions an eye judges in the first seconds (first impression, hie
 
 ### Phase 5 — Automated Validation (mandatory before delivery)
 
-Run the final gate — it orchestrates all **9 gates** in sequence (8 static + 1 rendered visual/vision pass):
+Run the final gate — it orchestrates all **10 gates** in sequence (8 static + 1 rendered visual/vision pass + 1 measured layout-integrity pass when `--url` is supplied):
 
 | Step | Tool | What it checks |
 |---|---|---|
@@ -450,6 +450,7 @@ Run the final gate — it orchestrates all **9 gates** in sequence (8 static + 1
 | 7 | `audit_beauty.py` | Positive craft floor — Beauty Score must be ≥ 50 (blocks clean-but-soulless designs) |
 | 8 | `audit_gestures.py` | **Signature-gesture enforcement:** the committed archetype's signature gestures (from `beauty-gestures.md`) must actually be in the code. Catches "tokens without gestures" — adopting an archetype's look without its craft. Auto-detects the archetype from the DESIGN.md font pairing or via `--archetype`. Blocks when < 2 of 3 gestures are present. |
 | 9 | `visual_audit.py` + `aesthetic_review.py` | **Rendered pass (mandatory):** requires a fresh `audit_report.json` with a clean rendered DOM **and** a passing aesthetic verdict (`reads_as: human`, score ≥ pass). Blocks delivery if missing, stale, or below floor. |
+| 10 | `audit_layout.py` | **Layout-integrity pass (measured responsiveness, runs when `--url` is passed):** on all 4 breakpoints it MEASURES the rendered DOM instead of eyeballing it. **Blocks** on horizontal overflow — `L1` page `scrollWidth > viewport`, `L2` element past the viewport edge, `L3` child spilling out of its parent (this catches a non-responsive grid that never collapses on mobile). **Warns** (blocks with `--strict`) on `L4` ragged grid baseline — cards in a row whose meta/author line does not share a baseline because the card is not `flex-col h-full` + `mt-auto` — and `L5` uneven card heights in a divided row. Fills the gap where `visual_audit.py` only re-runs slop/8px checks per breakpoint and leaves "does the layout actually hold?" to the (self-judged, weak) vision pass. |
 
 ```bash
 python3 scripts/check.py --final --code ./src --url http://localhost:3000
@@ -539,5 +540,6 @@ The output is a JSON object with a `violations` array. Each entry contains:
 | `scripts/audit_beauty.py` | Beauty Score (0-100) — rewards type-scale contrast, hierarchy, signature colour, spacing rhythm, finition. Blocks below 50 |
 | `scripts/audit_brief.py` | Phase -1 quality layer — scores the Creative Brief 0-100 (Emotional Intent concreteness, non-software Cross-Domain Steal, dials pushed to an extreme, etc.). Blocks below 50. Closes the "a tepid brief passes" hole in gate 0 |
 | `scripts/audit_gestures.py` | Gate 9 — enforces the committed archetype's signature gestures (`beauty-gestures.md`) are actually implemented in code (raw CSS or Tailwind/JSX). Catches "tokens without gestures". Auto-detects archetype from the font pairing or `--archetype` |
+| `scripts/audit_layout.py` | Gate 10 — Playwright layout-integrity audit on 4 breakpoints. Blocks on horizontal overflow (L1 page / L2 viewport / L3 child-spills-parent); warns on ragged grid baseline (L4) and uneven card heights (L5). `--json` for machine-readable fixes, `--strict` to make L4/L5 blocking. Run with the same `--url` as `visual_audit.py`; wired into `check.py --final` whenever `--url` is supplied |
 | `scripts/audit_wow.py` | Opt-in WOW gate (`check.py --final --wow`) — scores 0-100 how far the design pushes its ONE hero dimension into deliberate excess (huge type / extreme whitespace / bold colour / scroll motion / hero imagery) + 3/3 gestures + an extreme dial + an owned signature move. Floors-passing "clean" can still be merely competent; this rewards committing. NOT for trust-first/public-sector work |
 | `.slop-ignore` | Whitelist against false positives for detect_ai_slop.py |

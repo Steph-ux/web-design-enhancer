@@ -815,6 +815,50 @@ def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-r
         fail(_e)
     errors.extend(v_errors)
 
+    # ── Layout-integrity gate (responsiveness, MEASURED not eyeballed) ───────
+    # Closes the hole left by visual_audit.py: that script renders 4 breakpoints
+    # but never measures whether the layout actually holds. This step blocks on
+    # horizontal overflow (L1/L2/L3) and reports ragged grid alignment (L4/L5).
+    # Requires a live server (same --url as the visual audit).
+    if url:
+        print(f"\n{BOLD}Layout integrity (overflow + grid alignment, 4 breakpoints)...{RESET}")
+        layout_script = SCRIPTS_DIR / "audit_layout.py"
+        if layout_script.exists():
+            l_args = [sys.executable, str(layout_script), "--url", url, "--json"]
+            lr = subprocess.run(l_args, capture_output=True, text=True, encoding="utf-8", errors="replace")
+            try:
+                ldata = json.loads(lr.stdout or "{}")
+            except Exception:
+                ldata = {}
+            bps = ldata.get("breakpoints", {})
+            if not bps:
+                warn("audit_layout.py produced no result — is the server reachable at the --url? "
+                     + (lr.stderr.strip().splitlines()[-1] if lr.stderr.strip() else ""))
+            else:
+                n_err = sum(len(b.get("errors", [])) for b in bps.values())
+                n_warn = sum(len(b.get("warnings", [])) for b in bps.values())
+                for name, b in bps.items():
+                    vw = (b.get("viewport") or [0])[0]
+                    for e in b.get("errors", []):
+                        fail(f"[{name} {vw}px] {e['code']}: {e['message']}")
+                        if verbose:
+                            print(f"        {CYAN}-> {e['fix']}{RESET}")
+                    for w in b.get("warnings", []):
+                        warn(f"[{name} {vw}px] {w['code']}: {w['message']}")
+                        if verbose:
+                            print(f"        {CYAN}-> {w['fix']}{RESET}")
+                if n_err:
+                    errors.append(
+                        f"audit_layout.py — {n_err} blocking layout violation(s) across breakpoints "
+                        f"(horizontal overflow / element spill). The page is not responsive: fix every "
+                        f"L1/L2/L3 above, then re-render and re-run."
+                    )
+                if n_warn and not n_err:
+                    print(f"  {YELLOW}{n_warn} layout warning(s) (L4/L5 grid alignment) — not blocking; "
+                          f"run audit_layout.py --strict to enforce.{RESET}")
+        else:
+            warn("audit_layout.py not found — skipping layout-integrity gate")
+
     # Optional WOW gate — only when --wow is requested. Rewards deliberate excess
     # in the ONE hero dimension; a floor-passing design can still be "merely competent".
     if wow:
