@@ -126,13 +126,20 @@ def _is_neutral(hex_color: str) -> bool:
 
 
 def _is_default_blue(hex_color: str) -> bool:
-    """True for the family of AI-default blues/indigos around #3B82F6."""
+    """True for the family of AI-default blues/indigos/violets around #3B82F6.
+
+    Hue band 195-275 covers the canonical AI palette end-to-end:
+      sky #0EA5E9 (199) · blue #3B82F6 (217) · indigo #6366F1 (239)
+      · violet #8B5CF6 (258) · purple #A855F7 (271).
+    Stops before magenta/fuchsia #D946EF (292), which is usually a
+    deliberate, owned accent rather than a default.
+    """
     try:
         r, g, b = _hex_to_rgb(hex_color)
     except ValueError:
         return False
     h, s, l = _rgb_to_hsl(r, g, b)
-    return 205 <= h <= 255 and s >= 0.45 and 0.35 <= l <= 0.75
+    return 195 <= h <= 275 and s >= 0.45 and 0.35 <= l <= 0.75
 
 
 # ──────────────────────────────────────────────────────────────────────────────

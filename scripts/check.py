@@ -1052,7 +1052,7 @@ def _print_delivery_ok():
     lines = [
         "[OK]  DELIVERY AUTHORIZED",
         "",
-        "All 8 gates green — including the rendered",
+        "Every final gate green — including the rendered",
         "visual + vision pass.",
         "Zero AI slop. Unique. Reads as human-crafted.",
     ]

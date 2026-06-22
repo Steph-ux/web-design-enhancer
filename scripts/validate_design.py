@@ -78,6 +78,10 @@ class DesignValidator:
 
         # Report
         self._print_report()
+        # In strict mode, warnings are promoted to blockers (the flag's promise).
+        # Default mode keeps the historical contract: only errors block.
+        if self.strict:
+            return len(self.errors) == 0 and len(self.warnings) == 0
         return len(self.errors) == 0
 
     def _parse_sections(self):
@@ -937,6 +941,9 @@ class DesignValidator:
         print("\n" + "=" * 60)
         if self.errors:
             print(f"RESULT: FAILED ({len(self.errors)} errors)")
+        elif self.warnings and self.strict:
+            # --strict promotes warnings to blockers.
+            print(f"RESULT: BLOCKED (--strict) ({len(self.warnings)} warnings)")
         elif self.warnings:
             print(f"RESULT: PASSED WITH WARNINGS ({len(self.warnings)} warnings)")
         else:

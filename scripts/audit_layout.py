@@ -208,6 +208,161 @@ _JS_LAYOUT = r"""
         });
     });
 
+    // ── L6-L9: measured structural slop (cliche detection, WARN only) ─────
+    // These catch geometric AI-slop the lexical detector is blind to. All push
+    // to out.warnings (never errors) — they block only under --strict, exactly
+    // like L4/L5. Each MEASURES the rendered DOM; none keyword-matches source.
+
+    const px = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+    const isVisible = (el) => {
+        const cs = getComputedStyle(el);
+        if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0;
+    };
+
+    // collect every grid/flex container once (shared by L6)
+    const flexGridContainers = [];
+    document.querySelectorAll('body *').forEach(el => {
+        const d = getComputedStyle(el).display;
+        if (d === 'grid' || d === 'flex') flexGridContainers.push(el);
+    });
+
+    // ── L6: identical N-column feature grid ───────────────────────────────
+    // >=3 sibling cards in one visual row that share (a) near-equal width and
+    // (b) the SAME direct-child tag signature, each card being a real block
+    // (>=2 children). That is the canonical SaaS "feature grid" the model emits.
+    let firedL6 = false;
+    flexGridContainers.forEach(grid => {
+        if (firedL6) return;
+        const cards = Array.from(grid.children).filter(isVisible);
+        if (cards.length < 3) return;
+        // group into rows by top Y
+        const rows = [];
+        cards.forEach(c => {
+            const top = c.getBoundingClientRect().top;
+            let row = rows.find(rw => Math.abs(rw.top - top) <= RB);
+            if (!row) { row = { top, cards: [] }; rows.push(row); }
+            row.cards.push(c);
+        });
+        rows.forEach(row => {
+            if (firedL6 || row.cards.length < 3) return;
+            const sig = (el) => Array.from(el.children)
+                .map(c => c.tagName.toLowerCase()).join(',');
+            // only structural cards (>=2 direct children) count
+            const structural = row.cards.filter(c => c.children.length >= 2);
+            if (structural.length < 3) return;
+            const widths = structural.map(c => c.getBoundingClientRect().width);
+            const wSpread = Math.max(...widths) - Math.min(...widths);
+            if (wSpread > 4) return; // unequal columns -> intentional, not a clone grid
+            const counts = {};
+            structural.forEach(c => { const s = sig(c); counts[s] = (counts[s] || 0) + 1; });
+            const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+            if (top && top[1] >= 3) {
+                firedL6 = true;
+                out.warnings.push({
+                    code: 'L6',
+                    element: label(grid),
+                    message: 'Identical ' + top[1] + '-up feature grid in "' + label(grid) +
+                             '": ' + top[1] + ' sibling cards share equal width and the same ' +
+                             'child structure (' + top[0] + '). This is the default AI "feature grid" — ' +
+                             'three interchangeable equal cards.',
+                    fix: 'Break the symmetry: vary card sizes (a 2fr lead + two 1fr), give one card a ' +
+                         'distinct treatment, or drop the rigid 3-up grid for an asymmetric layout with ' +
+                         'a clear focal point. Equal-everything reads as machine-generated.'
+                });
+            }
+        });
+    });
+
+    // ── L7: uniform section-padding rhythm ────────────────────────────────
+    // >=3 sections whose vertical padding is IDENTICAL (no rhythm variation at
+    // all) signals py-20-everywhere boilerplate rather than designed spacing.
+    const sections = Array.from(document.querySelectorAll('section,[class*=section],[class*=Section]'))
+        .filter(isVisible);
+    if (sections.length >= 3) {
+        const tops = sections.map(s => px(getComputedStyle(s).paddingTop));
+        const bots = sections.map(s => px(getComputedStyle(s).paddingBottom));
+        const spread = (a) => Math.max(...a) - Math.min(...a);
+        const maxPad = Math.max(...tops, ...bots);
+        if (spread(tops) <= 4 && spread(bots) <= 4 && maxPad >= 24) {
+            out.warnings.push({
+                code: 'L7',
+                element: sections.length + ' sections',
+                message: 'Mechanical spacing rhythm: all ' + sections.length + ' sections share the ' +
+                         'same ~' + Math.round(tops[0]) + 'px vertical padding. There is zero rhythm ' +
+                         'variation — every band breathes identically, a hallmark of generated layouts.',
+                fix: 'Design a real vertical rhythm: let the hero breathe more, compress secondary ' +
+                     'bands, vary padding by section importance. Uniform py everywhere flattens hierarchy.'
+            });
+        }
+    }
+
+    // ── L8: rounded-2xl + shadow-xl card cliche ───────────────────────────
+    // >=3 elements that all carry a generous radius + a soft drop shadow + real
+    // padding, with matching radius/shadow — the default "card" the model ships.
+    const cardCandidates = [];
+    document.querySelectorAll('body *').forEach(el => {
+        if (!isVisible(el)) return;
+        const cs = getComputedStyle(el);
+        const radius = px(cs.borderTopLeftRadius);
+        const hasShadow = cs.boxShadow && cs.boxShadow !== 'none';
+        const pad = px(cs.paddingTop);
+        if (radius >= 12 && hasShadow && pad >= 16) {
+            cardCandidates.push({ key: (Math.round(radius / 4) * 4) + '|' + cs.boxShadow });
+        }
+    });
+    if (cardCandidates.length >= 3) {
+        const groups = {};
+        cardCandidates.forEach(c => { groups[c.key] = (groups[c.key] || 0) + 1; });
+        const biggest = Math.max(...Object.values(groups));
+        if (biggest >= 3) {
+            out.warnings.push({
+                code: 'L8',
+                element: biggest + ' cards',
+                message: biggest + ' cards share the same rounded-corner + soft-drop-shadow recipe ' +
+                         '(generous radius, diffuse shadow, generous padding). This is the single most ' +
+                         'common AI card style — instantly recognisable as generated.',
+                fix: 'Earn the card: try a flat card with a single hairline rule, an accent top-border, ' +
+                     'an offset/hard shadow, or no card at all. If you keep the shadow, make it ' +
+                     'intentional and singular, not applied uniformly to every box.'
+            });
+        }
+    }
+
+    // ── L9: uniform hover-lift translateY ─────────────────────────────────
+    // A :hover rule that lifts elements with translateY(negative), applied to
+    // >=3 elements (or >=2 distinct rules) — the reflexive AI micro-interaction.
+    const hoverLift = [];
+    for (const sheet of Array.from(document.styleSheets)) {
+        let rules;
+        try { rules = sheet.cssRules; } catch (e) { continue; }
+        if (!rules) continue;
+        for (const rule of Array.from(rules)) {
+            if (!rule.selectorText || !/:hover/.test(rule.selectorText)) continue;
+            const tr = rule.style && rule.style.transform;
+            if (tr && /translatey\(\s*-/i.test(tr)) {
+                const base = rule.selectorText.replace(/:hover/g, '');
+                let n = 0;
+                try { n = document.querySelectorAll(base).length; } catch (e) { n = 0; }
+                hoverLift.push({ sel: rule.selectorText, n: n });
+            }
+        }
+    }
+    const liftTotal = hoverLift.reduce((a, b) => a + b.n, 0);
+    if (liftTotal >= 3 || hoverLift.length >= 2) {
+        out.warnings.push({
+            code: 'L9',
+            element: hoverLift.map(h => h.sel).slice(0, 3).join(', '),
+            message: 'Uniform hover-lift: a ":hover { transform: translateY(-…) }" rule lifts ' +
+                     liftTotal + ' element(s). The translateY-on-hover card lift is the default ' +
+                     'AI micro-interaction applied reflexively to every card.',
+            fix: 'Make hover states earn their keep and differ by element: a colour/border shift, an ' +
+                 'underline reveal, a subtle scale on ONE hero element. A site where every card lifts ' +
+                 'identically signals a template, not a designed interaction.'
+        });
+    }
+
     return out;
 }
 """

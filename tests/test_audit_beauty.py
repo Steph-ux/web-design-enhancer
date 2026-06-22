@@ -186,7 +186,11 @@ class TestColorHelpers:
         assert not _is_neutral("#c1440e")
 
     def test_default_blue_detection(self):
-        assert _is_default_blue("#3B82F6")
+        assert _is_default_blue("#3B82F6")    # blue-500
+        assert _is_default_blue("#6366F1")    # indigo-500
+        assert _is_default_blue("#8B5CF6")    # violet-500 (hue 258 — was a gap)
+        assert _is_default_blue("#A855F7")    # purple-500 (hue 271 — was a gap)
+        assert not _is_default_blue("#D946EF")  # fuchsia-500 (hue 292) — owned accent, not default
         assert not _is_default_blue("#c1440e")
         assert not _is_default_blue("#1a1a1a")
 

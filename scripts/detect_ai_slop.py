@@ -96,7 +96,7 @@ class AISloPDetector:
          "Generic system status indicator - strong AI signal"),
         (r"text-transform\s*:\s*uppercase[^}]{0,200}(?:button|\.btn|\.cta|nav-link|menu-item)",
          "text-transform: uppercase on button/CTA - AI slop pattern"),
-        (r"(?:className|class)\s*=\s*\"[^\"]*\b(?:uppercase|tracking-widest)\b[^\"]*\b(?:btn|button|cta|nav-link)\b",
+        (r"(?:className|class)\s*=\s*[\"'][^\"']*\b(?:uppercase|tracking-widest)\b[^\"']*\b(?:btn|button|cta|nav-link)\b",
          "Uppercase class on button/CTA - ALL CAPS on CTAs = frequent AI pattern"),
         (r"<(?:Star|StarIcon|StarFilled)\s*/>",
          "JSX star icon with no functional context - decorative GitHub stars badge"),
@@ -219,7 +219,7 @@ class AISloPDetector:
          "Generic placeholder text in HTML — replace with real project content (§0b)"),
 
         # A6 — External placeholder images (picsum, via.placeholder, placehold.co)
-        (r'src=.{0,4}(?:via\.placeholder\.com|picsum\.photos|placehold\.co|dummyimage\.com|lorempixel\.com)',
+        (r'src\s*=\s*["\'][^"\'<>]*(?:via\.placeholder\.com|picsum\.photos|placehold\.co|dummyimage\.com|lorempixel\.com)',
          "External placeholder image (picsum/via.placeholder.com) — forbidden in delivered code (§0b)"),
 
         # A2 — Invented marketing statistics hardcoded in HTML
@@ -262,6 +262,49 @@ class AISloPDetector:
         # Detected separately in CSS patterns, listed here for HTML inline styles
         (r'style=["\'][^"\'>]*(?:color|background)\s*:\s*#[0-9a-fA-F]{3,6}',
          "Inline style with hardcoded hex color — bypass of CSS custom properties. Replace with var(--color-token) from DESIGN.md §2 (§0b B6)"),
+    ]
+
+    # -----------------------------------------------------------------------
+    # HTML COPY / STRUCTURE SLOP — WARNING-level (severity=1), NOT contract
+    # violations. These are soft "AI tells": templated marketing copy and
+    # cliché page structures. A real human SaaS site legitimately has a
+    # 3-tier pricing table or two hero CTAs, so flagging them as hard ERRORS
+    # would false-positive. They count toward warning density instead, and
+    # only block in aggregate (density > MAX) or under --strict.
+    # Each pattern here MUST have a matching negative test (a real human page
+    # that must NOT fire) before it ships — see tests/test_detect_slop_recall.py.
+    # -----------------------------------------------------------------------
+    HTML_COPY_SLOP_PATTERNS = [
+        # C1 — Generic SaaS hero verb-phrase ("Transform Your Workflow",
+        # "Supercharge your productivity", "Unlock the power of …").
+        # Anchored to a heading so body prose using these words won't fire.
+        (r"<h[1-2][^>]*>\s*(?:Transform|Supercharge|Unlock|Elevate|Revolutionize|Empower|Streamline)\s+(?:your|the)\b[^<]{0,60}</h[1-2]>",
+         "Generic SaaS hero verb-phrase ('Transform Your Workflow') — templated AI headline. Say what the product concretely does (§9)"),
+        (r"(?:Unlock|Harness|Experience)\s+the\s+(?:power|future|magic)\s+of\b",
+         "'Unlock the power of …' copy — empty AI marketing filler; lead with a concrete benefit (§9)"),
+        # C2 — 'all-in-one platform' / 'one platform for everything' tagline
+        (r"\ball[-\s]in[-\s]one\s+(?:platform|solution|tool|app|suite)\b",
+         "'All-in-one platform' tagline — generic AI positioning that says nothing specific (§9)"),
+        (r"\b(?:the\s+)?(?:ultimate|complete|modern)\s+(?:platform|solution)\s+for\s+(?:modern\s+)?teams\b",
+         "'The … platform for modern teams' tagline — templated AI copy; name the actual audience (§9)"),
+        # C3 — 'Powered by AI' decorative badge / sentence-case
+        (r"(?:>|aria-label=[\"'])\s*Powered\s+by\s+AI\b",
+         "'Powered by AI' badge — decorative AI-bragging chrome, never in the brief unless it is the product (§9)"),
+        # C4 — Primary + secondary hero CTA pair ("Start free trial" + "Book a demo").
+        # Two adjacent btn-primary/btn-secondary anchors is the canonical AI hero.
+        (r"class=[\"'][^\"']*\bbtn[-_]primary\b[^\"']*[\"'][^>]*>[^<]*</a>\s*<a[^>]*class=[\"'][^\"']*\bbtn[-_]secondary\b",
+         "Primary+secondary hero CTA pair (btn-primary then btn-secondary) — the canonical AI hero layout; one clear primary action reads as more intentional (§9)"),
+        # C5 — Starter / Pro / Enterprise 3-tier pricing cliché (order-independent on the trio).
+        (r"\bStarter\b[\s\S]{0,400}\bPro\b[\s\S]{0,400}\bEnterprise\b",
+         "Starter/Pro/Enterprise 3-tier pricing — the default AI pricing table. Justify the tiers against the real offer or rename them (§9)"),
+        # C6 — Decorative 'New' / 'Beta' floating badge on a marketing page
+        (r"class=[\"'][^\"']*\bbadge\b[^\"']*[\"'][^>]*>\s*(?:New|Beta|Hot|Pro|AI)\s*<",
+         "Decorative 'New'/'Beta' floating badge — unrequested attention-grabber, typical AI chrome (§9)"),
+        # C7 — Emoji used as a decorative <li> bullet (✨ Lightning fast).
+        # Fires when a list item OPENS with a pictographic emoji — the AI
+        # feature-list tell. Emoji mid-sentence in prose won't match.
+        (r"<li[^>]*>\s*[\U0001F300-\U0001FAFF☀-➿✨✅⭐❤]",
+         "Emoji as a <li> bullet (✨/🔒/✅) — decorative AI feature-list tell. Use a real icon set or plain markers (§9)"),
     ]
 
     # -----------------------------------------------------------------------
@@ -341,6 +384,23 @@ class AISloPDetector:
         # B8 — Glassmorphism spam (backdrop-filter on non-modal elements)
         (r"(?<!modal)(?<!dialog)(?<!dropdown)[^{]*\{[^}]*backdrop-filter\s*:\s*blur\(",
          "backdrop-filter: blur() on non-modal element — glassmorphism overuse is an AI signature. Reserve for modals/dropdowns only (§0d)"),
+
+        # B9 — Gradient-clipped text (background-clip:text + transparent fill)
+        # The "rainbow headline" cliche. Solid colour tokens read as intentional.
+        (r"background-clip\s*:\s*text|-webkit-text-fill-color\s*:\s*transparent",
+         "Gradient-clipped text (background-clip:text + transparent fill) — overused AI headline effect. Use a solid colour token from §2 (§0d)"),
+
+        # B10 — Gradient pill button (linear-gradient background + fully-rounded radius)
+        (r"background\s*:[^;]*linear-gradient[^}]{0,160}border-radius\s*:\s*9999px|border-radius\s*:\s*9999px[^}]{0,160}background\s*:[^;]*linear-gradient",
+         "Gradient pill button (linear-gradient + border-radius:9999px) — generic AI CTA styling. Use a flat token colour and an intentional radius (§0d)"),
+
+        # B11 — Aurora / mesh-blob background (stacked radial-gradients or heavy blur)
+        (r"radial-gradient[^;]*radial-gradient|background\s*:[^;]*radial-gradient[^}]{0,200}filter\s*:\s*blur\(\s*[4-9]\dpx",
+         "Aurora/mesh-blob background (stacked radial-gradients + heavy blur) — saturated AI hero cliche. Justify in DESIGN.md §1 or remove (§0d)"),
+
+        # B12 — Indigo/blue→violet/purple gradient anywhere (B7 only catches it on .hero)
+        (r"linear-gradient[^;]*#(?:3[Bb]82[Ff]6|6366[Ff]1|4[Ff]46[Ee]5|667eea)[^;]*#(?:8[Bb]5[Cc][Ff]6|[Aa]855[Ff]7|764ba2|7c3aed)",
+         "Indigo/blue→violet/purple gradient — the canonical AI palette pairing (dodges the .hero rule). Use a project-specific gradient from §2 (§0d)"),
     ]
 
     # Cliche gradients
@@ -410,6 +470,14 @@ class AISloPDetector:
         "courier", "comic sans", "impact", "trebuchet", "palatino",
     }
 
+    # AI-default fonts: genuinely good typefaces, but reaching for them by reflex
+    # is the single most common AI tell. WARNING (not ERROR) — a justified choice
+    # in DESIGN.md §3 (or a whitelist entry) clears it; the reflex default does not.
+    AI_DEFAULT_FONTS = {
+        "inter", "poppins", "roboto", "montserrat", "manrope",
+        "plus jakarta sans", "space grotesk", "dm sans", "sora",
+    }
+
     # -----------------------------------------------------------------------
     # ACCESSIBILITY PATTERNS — HTML structural requirements (WCAG 2.1)
     # Scanned in .html files
@@ -451,7 +519,50 @@ class AISloPDetector:
         self.code_dir = Path(code_dir) if code_dir else None
         self.issues: List[Dict] = []
         self.score = 100
+        # Two-tier gate counters (populated by _finalize()).
+        self.error_count = 0
+        self.warning_count = 0
+        self.files_count = 0
+        self.passed = True
         self._whitelist = self._load_slop_ignore()
+
+    # -- two-tier gate ----------------------------------------------------------
+    # The pass/fail decision is SIZE-INDEPENDENT and no longer keyed on the 0-100
+    # score (which is retained for human reporting only):
+    #   passed = (error_count == 0) AND (warning_count / files <= MAX_WARNING_DENSITY)
+    # Any severity-"error" issue is a §0b/§0d contract violation and blocks
+    # regardless of project size; warnings are taste/quality and tolerated up to a
+    # per-file density so large-but-clean projects are not failed by raw accumulation.
+    MAX_WARNING_DENSITY = 2.0
+
+    # extensions counted toward files_count (the warning-density denominator)
+    _COUNTED_EXTS = ("*.html", "*.css", "*.js", "*.ts", "*.jsx", "*.tsx",
+                     "*.swift", "*.kt", "*.kts", "*.dart")
+
+    @staticmethod
+    def evaluate_gate(errors: int, warnings: int, files: int) -> bool:
+        if errors > 0:
+            return False
+        return (warnings / max(files, 1)) <= AISloPDetector.MAX_WARNING_DENSITY
+
+    def _count_files(self) -> int:
+        files = set()
+        if self.code_dir and self.code_dir.exists():
+            for ext in self._COUNTED_EXTS:
+                for fp in self.code_dir.rglob(ext):
+                    if not self._file_is_ignored(fp):
+                        files.add(str(fp))
+        count = len(files)
+        if self.design_file:
+            count += 1
+        return max(count, 1)
+
+    def _finalize(self):
+        self.error_count = sum(1 for i in self.issues if i.get("severity") == "error")
+        self.warning_count = sum(1 for i in self.issues if i.get("severity") == "warning")
+        self.files_count = self._count_files()
+        self.passed = self.evaluate_gate(self.error_count, self.warning_count, self.files_count)
+        return self.passed
 
     # -- .slop-ignore -----------------------------------------------------------
 
@@ -600,6 +711,25 @@ class AISloPDetector:
                 severity=2,
             )
 
+        # HTML copy / structure slop — WARNING-level (severity=1). Soft AI
+        # tells (templated marketing copy, cliché page structures). They count
+        # toward warning density and only block in aggregate or under --strict,
+        # because a legitimate human site can have any one of them in isolation.
+        for entry in self.HTML_COPY_SLOP_PATTERNS:
+            pattern, message = entry[0], entry[1]
+            flags = entry[2] if len(entry) > 2 else re.IGNORECASE
+            if re.search(pattern, content, flags):
+                self._add_issue(
+                    "HTML_COPY_SLOP",
+                    f"{message} [{ctx}]",
+                    (
+                        "Rewrite the copy or structure to match the actual product. "
+                        "These are soft AI tells, not hard violations — but several "
+                        "together read unmistakably as generated boilerplate."
+                    ),
+                    severity=1  # Warning-level: counts toward density, not a hard block
+                )
+
     # -----------------------------------------------------------------------
     # CSS slop — scans .css files for forbidden animation/badge CSS rules
     # -----------------------------------------------------------------------
@@ -619,6 +749,26 @@ class AISloPDetector:
                         "Remove or justify this CSS rule. "
                         "It correlates with a forbidden badge/effect pattern (§0d). "
                         "If kept, document it explicitly in DESIGN.md §7 Motion."
+                    ),
+                    severity=1
+                )
+
+        # AI-default fonts in font-family declarations — WARNING, whitelist-aware.
+        for font in self.AI_DEFAULT_FONTS:
+            if self._is_whitelisted("fonts", font):
+                continue
+            if re.search(
+                rf"font-family\s*:[^;}}]*['\"]?{re.escape(font)}['\"]?",
+                content, re.IGNORECASE,
+            ):
+                self._add_issue(
+                    "AI_DEFAULT_FONT",
+                    f"AI-default font '{font.title()}' in font-family [{ctx}] — "
+                    "the most common AI typographic tell.",
+                    (
+                        f"'{font.title()}' is a fine typeface, but reaching for it by default "
+                        "signals a templated choice. Pick a face that fits the brief's voice and "
+                        "justify it in DESIGN.md §3, or whitelist it if it is a deliberate decision."
                     ),
                     severity=1
                 )
@@ -669,12 +819,13 @@ class AISloPDetector:
             self._check_design_file()
         if self.code_dir:
             self._check_code_directory()
+        self._finalize()
         if json_mode:
             import json as _json
             print(_json.dumps(self._build_json_report(), indent=2, ensure_ascii=False))
         else:
             self._print_report()
-        return self.score >= 80
+        return self.passed
 
     def _check_design_file(self):
         if not self.design_file.exists():
@@ -790,7 +941,7 @@ class AISloPDetector:
             if re.search(pattern, content, flags):
                 issue = {
                     "type": "status_badge",
-                    "severity": "warning",
+                    "severity": "error",  # contract violation - blocks the gate
                     "message": f"AI status badge: {message}",
                     "suggestion": (
                         "Remove this badge - never requested, immediate AI signal. "
@@ -923,7 +1074,12 @@ class AISloPDetector:
         ]
         return {
             "score": self.score,
-            "passed": self.score >= 80,
+            "passed": self.passed,
+            "error_count": self.error_count,
+            "warning_count": self.warning_count,
+            "files_count": self.files_count,
+            "warning_density": round(self.warning_count / max(self.files_count, 1), 3),
+            "max_warning_density": self.MAX_WARNING_DENSITY,
             "violation_count": len(violations),
             "violations": violations,
             "self_correction_protocol": (
@@ -1294,13 +1450,27 @@ class AISloPDetector:
                     print(f"     -> {issue['suggestion']}")
 
         print("\n" + "-" * 70)
-        print(f"QUALITY SCORE: {self.score}/100")
-        if self.score >= 80:
-            print("[OK] RESULT: GOOD - Ready for delivery")
-        elif self.score >= 60:
-            print("[WARN] RESULT: ACCEPTABLE - Fix the warnings")
+        print(f"QUALITY SCORE: {self.score}/100  (display only — not the gate)")
+        # The verdict is the two-tier gate decision (self.passed), NOT the score:
+        #   passed = (error_count == 0) AND (warning_density <= MAX_WARNING_DENSITY)
+        # Keying the printed verdict on the score could contradict the real exit
+        # code (e.g. score 85 but warning density too high → blocked).
+        density = self.warning_count / max(self.files_count, 1)
+        if self.passed:
+            print(
+                f"[OK] RESULT: PASS — {self.error_count} error(s), "
+                f"{self.warning_count} warning(s) across {self.files_count} file(s) "
+                f"(density {density:.2f} <= {self.MAX_WARNING_DENSITY})"
+            )
         else:
-            print("[ERROR] RESULT: POOR - Revisit the design")
+            if self.error_count > 0:
+                reason = f"{self.error_count} blocking error(s)"
+            else:
+                reason = (
+                    f"warning density {density:.2f} > {self.MAX_WARNING_DENSITY} "
+                    f"({self.warning_count} warnings / {self.files_count} files)"
+                )
+            print(f"[ERROR] RESULT: BLOCKED — {reason}")
         print("=" * 70 + "\n")
 
 
