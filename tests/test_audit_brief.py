@@ -64,6 +64,68 @@ Stealing from another SaaS landing page, the app dashboard layout.
 """
 
 
+# --- French fixtures: a sharp brief and filler, to lock bilingual lexicons ----
+
+SHARP_FR = """# CREATIVE-BRIEF.md
+
+## Emotional Intent
+Quand quelqu'un arrive il doit se sentir dans l'arrière-salle d'une usine de
+pressage de vinyle à 3h du matin, l'odeur de PVC chaud, une seule ampoule nue
+au-dessus de la presse, comme attendre que la matrice refroidisse.
+
+## The One Unexpected Thing
+Le catalogue n'a aucune pochette visible au départ ; chaque sortie est seulement
+sa forme d'onde gravée, énorme, en pleine largeur, et c'est tout le pari.
+
+## Hero Dimension
+- [x] Motion
+- [ ] Typography
+- [ ] Colour
+
+## The Broken Rule
+On ignore le défilement vertical sage : la page défile horizontalement comme un
+sillon de vinyle, parce que ce mouvement EST l'identité du label.
+
+## Design Read
+Un site de catalogue pour un label techno underground, langage brut.
+
+## Design Dials
+- VARIANCE: **8**
+- MOTION: **9**
+- DENSITY: **3**
+
+## The Cross-Domain Steal
+La discipline non-logicielle que je vole : la signalétique des clubs de Berlin et
+le pressage de vinyle. Le mouvement précis : la lecture en spirale d'un sillon,
+de l'extérieur vers un point central unique.
+"""
+
+FILLER_FR = """# CREATIVE-BRIEF.md
+
+## Emotional Intent
+Une expérience moderne et professionnelle, épurée et élégante.
+
+## The One Unexpected Thing
+Un hero immersif comme Spotify avec un beau dégradé.
+
+## Hero Dimension
+- [x] Typography
+- [x] Colour
+
+## The Broken Rule
+On va ignorer certaines règles de grille.
+
+## Design Read
+Un site web moderne pour un label de musique.
+
+## Design Dials
+- VARIANCE: 7
+
+## The Cross-Domain Steal
+On s'inspire d'une autre landing page SaaS et du tableau de bord d'une appli.
+"""
+
+
 def run(tmp_path, text, *args):
     p = tmp_path / "CREATIVE-BRIEF.md"
     p.write_text(text, encoding="utf-8")
@@ -118,3 +180,45 @@ def test_two_hero_dims_penalised(tmp_path):
     data = json.loads(r.stdout)
     b6 = next(d for d in data["dimensions"] if d["id"] == "B6")
     assert b6["points"] < b6["max"]
+
+
+# --- Bilingual (French) coverage ---------------------------------------------
+
+def test_sharp_french_brief_passes(tmp_path):
+    # A genuinely sharp brief written in French must clear the floor, not be
+    # penalised for its language (regression: B4 scored 6/22 before bilingual lexicons).
+    r = run(tmp_path, SHARP_FR)
+    assert r.returncode == 0
+    assert "SHARP" in r.stdout
+
+
+def test_french_nonsoftware_steal_full_credit(tmp_path):
+    # "signalétique" + "pressage de vinyle" are non-software disciplines -> full B4.
+    r = run(tmp_path, SHARP_FR, "--json")
+    data = json.loads(r.stdout)
+    b4 = next(d for d in data["dimensions"] if d["id"] == "B4")
+    assert b4["points"] == b4["max"]
+
+
+def test_french_filler_brief_blocked(tmp_path):
+    # "moderne / professionnelle / épurée" + "appli/SaaS" steal must be caught as filler.
+    r = run(tmp_path, FILLER_FR)
+    assert r.returncode == 1
+    assert "BLOCKED" in r.stdout
+
+
+def test_french_software_steal_penalised(tmp_path):
+    # French software reference ("autre landing SaaS", "tableau de bord d'une appli")
+    # must NOT earn full B4 credit.
+    r = run(tmp_path, FILLER_FR, "--json")
+    data = json.loads(r.stdout)
+    b4 = next(d for d in data["dimensions"] if d["id"] == "B4")
+    assert b4["points"] < b4["max"]
+
+
+def test_french_vague_terms_penalise_b1(tmp_path):
+    # "moderne / épurée / élégante" are vague -> B1 below max.
+    r = run(tmp_path, FILLER_FR, "--json")
+    data = json.loads(r.stdout)
+    b1 = next(d for d in data["dimensions"] if d["id"] == "B1")
+    assert b1["points"] < b1["max"]

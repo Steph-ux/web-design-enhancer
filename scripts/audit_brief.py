@@ -42,6 +42,12 @@ VAGUE_TERMS = [
     "professional", "modern", "clean", "sleek", "elegant", "premium",
     "minimalist", "beautiful", "nice", "simple", "user-friendly", "intuitive",
     "innovative", "cutting-edge", "stunning", "engaging", "seamless",
+    # French equivalents (gendered forms spelled out — \b won't bridge a trailing 'e')
+    "professionnel", "professionnelle", "moderne", "épuré", "épurée",
+    "élégant", "élégante", "minimaliste", "soigné", "soignée", "raffiné",
+    "raffinée", "haut de gamme", "convivial", "conviviale", "intuitif",
+    "intuitive", "innovant", "innovante", "fluide", "impactant", "immersif",
+    "immersive", "épurés", "élégants",
 ]
 
 # Concreteness lexicon - sensory, material, place, atmosphere words.
@@ -52,6 +58,12 @@ CONCRETE_LEX = [
     "dim", "shadow", "light", "fluorescent", "wood", "steel", "glass", "stone",
     "leather", "wool", "rust", "patina", "chalk", "graphite", "velvet", "amber",
     "morning", "midnight", "rain", "sun", "salt", "sweat", "engine", "vinyl",
+    # French sensory/material/place words (substring match — short/ambiguous ones omitted)
+    "encre", "papier", "béton", "laiton", "cuivre", "marbre", "néon",
+    "poussière", "brouillard", "fumée", "entrepôt", "atelier", "odeur",
+    "lourd", "froid", "chaud", "ombre", "lumière", "acier", "verre", "cuir",
+    "laine", "rouille", "velours", "minuit", "pluie", "soleil", "sueur",
+    "moteur", "vinyle", "ampoule", "sillon", "graphite", "ardoise", "pierre",
 ]
 
 # Disciplines that are genuinely OUTSIDE software (the golden-rule whitelist).
@@ -63,6 +75,12 @@ NONSOFTWARE = [
     "music", "album", "vinyl record", "theatre", "theater", "ceramic",
     "poster", "sculpture", "painting", "menu", "couture", "automotive",
     "cartography", "map-making", "botanic", "interior design", "stage",
+    # French disciplines (substring match — avoid "mode" which collides with "modern")
+    "signalétique", "typographie", "sérigraphie", "affiche", "pressage",
+    "vinyle", "céramique", "cinéma", "peinture", "mobilier", "cartographie",
+    "photographie", "édition", "presse écrite", "joaillerie", "parfum",
+    "gastronomie", "scénographie", "reliure", "enseigne", "estampe",
+    "ébénisterie", "architecture d", "haute couture", "broderie",
 ]
 
 # Software / tech references the steal must NOT lean on (the failure mode).
@@ -72,6 +90,10 @@ SOFTWARE = [
     "design system", "mobile app", "software", "tech company", "another site",
     "another app", "linear.app", "stripe", "vercel", "notion", "figma",
     "airbnb", "spotify app",
+    # French software references (the failure mode the steal must NOT lean on)
+    "site web", "site internet", "page d'atterrissage", "tableau de bord",
+    "application mobile", "appli", "logiciel", "système de design",
+    "autre site", "autre appli", "outil de dev", "page d'accueil saas",
 ]
 
 # Well-known sites/apps - naming one in "the unexpected thing" means it is not
@@ -132,7 +154,7 @@ def score_brief(content: str):
         low = emo.lower()
         vague = [w for w in VAGUE_TERMS if re.search(rf"\b{re.escape(w)}\b", low)]
         concrete = [w for w in CONCRETE_LEX if w in low]
-        simile = bool(re.search(r"\b(like|as if|comme)\b", low))
+        simile = bool(re.search(r"\b(like|as if|comme|tel(?:le)?s?\s+que|à la manière)\b", low))
         pn = has_proper_noun(emo)
         pts = 6  # filled
         if concrete: pts += 5
