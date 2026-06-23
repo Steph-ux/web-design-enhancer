@@ -81,6 +81,19 @@ NONSOFTWARE = [
     "photographie", "édition", "presse écrite", "joaillerie", "parfum",
     "gastronomie", "scénographie", "reliure", "enseigne", "estampe",
     "ébénisterie", "architecture d", "haute couture", "broderie",
+    # Rare craft / artisanal disciplines (FR) — reduce the "unknown lexical field"
+    # miss on B4. Each checked substring-safe (no collision with VAGUE/SOFTWARE).
+    "lutherie", "ferronnerie", "verrerie", "soufflage", "forge",
+    "tannerie", "maroquinerie", "horlogerie", "orfèvrerie", "tapisserie",
+    "vitrail", "mosaïque", "fresque", "calligraphie", "enluminure",
+    "gravure", "lithographie", "fonderie", "tissage", "teinture",
+    "marqueterie", "vannerie", "poterie", "émaillage", "dorure",
+    "chaudronnerie", "menuiserie", "charpenterie", "tonnellerie", "coutellerie",
+    # rare craft disciplines (EN) — keep symmetry with the FR additions
+    "lutherie", "luthier", "blacksmith", "glassblow", "bookbind",
+    "watchmaking", "goldsmith", "tapestry", "stained glass", "mosaic",
+    "fresco", "calligraphy", "illumination", "engraving", "lithography",
+    "weaving", "marquetry", "basketry", "pottery", "enamel", "gilding",
 ]
 
 # Software / tech references the steal must NOT lean on (the failure mode).

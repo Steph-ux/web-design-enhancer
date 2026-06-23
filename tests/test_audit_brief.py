@@ -4,6 +4,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 SCRIPT = Path(__file__).parent.parent / "scripts" / "audit_brief.py"
 
 SHARP = """# CREATIVE-BRIEF.md
@@ -222,3 +224,23 @@ def test_french_vague_terms_penalise_b1(tmp_path):
     data = json.loads(r.stdout)
     b1 = next(d for d in data["dimensions"] if d["id"] == "B1")
     assert b1["points"] < b1["max"]
+
+
+# Rare craft / artisanal disciplines must earn full B4 credit too — not just the
+# common ones (signalétique, pressage). This is the "unknown lexical field" risk.
+@pytest.mark.parametrize("discipline", [
+    "la lutherie",        # FR rare craft
+    "la ferronnerie",     # FR rare craft
+    "blacksmithing",      # EN rare craft
+    "bookbinding",        # EN rare craft
+])
+def test_rare_craft_steal_full_credit(tmp_path, discipline):
+    brief = SHARP_FR.replace(
+        "La discipline non-logicielle que je vole : la signalétique des clubs de Berlin et\n"
+        "le pressage de vinyle.",
+        f"La discipline non-logicielle que je vole : {discipline}.",
+    )
+    r = run(tmp_path, brief, "--json")
+    data = json.loads(r.stdout)
+    b4 = next(d for d in data["dimensions"] if d["id"] == "B4")
+    assert b4["points"] == b4["max"]
