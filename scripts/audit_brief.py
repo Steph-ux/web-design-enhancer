@@ -33,6 +33,7 @@ import re
 import sys
 import json
 import argparse
+import unicodedata
 from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -72,7 +73,7 @@ NONSOFTWARE = [
     "typograph", "architecture", "cinema", "film", "movie", "signage",
     "wayfinding", "packaging", "fashion", "textile", "industrial design",
     "product design", "exhibition", "museum", "gallery", "photography",
-    "music", "album", "vinyl record", "theatre", "theater", "ceramic",
+    "music", "album", "vinyl record", "vinyl", "theatre", "theater", "ceramic",
     "poster", "sculpture", "painting", "menu", "couture", "automotive",
     "cartography", "map-making", "botanic", "interior design", "stage",
     # French disciplines (substring match — avoid "mode" which collides with "modern")
@@ -115,6 +116,20 @@ KNOWN_SITES = [
     "stripe", "vercel", "linear", "notion", "figma", "airbnb", "spotify",
     "apple", "nike", "tesla", "github", "framer", "webflow", "dribbble",
 ]
+
+
+def fold(s: str) -> str:
+    """Lowercase AND strip diacritics, so a FR brief typed without accents
+    (common on an EN keyboard, or in a mixed FR/EN brief) still matches the
+    accented lexicon entries. 'signaletique' -> matches 'signalétique'."""
+    nfkd = unicodedata.normalize("NFKD", s.lower())
+    return "".join(c for c in nfkd if not unicodedata.combining(c))
+
+
+# Accent-folded copies of the lexicons, matched against folded text. The
+# original accented lists stay readable; matching is accent-insensitive.
+NONSOFTWARE_F = [fold(w) for w in NONSOFTWARE]
+CONCRETE_LEX_F = [fold(w) for w in CONCRETE_LEX]
 
 
 def section_body(content: str, header: str) -> str:
@@ -164,10 +179,10 @@ def score_brief(content: str):
     if not filled(emo):
         note = "empty/unfilled."
     else:
-        low = emo.lower()
-        vague = [w for w in VAGUE_TERMS if re.search(rf"\b{re.escape(w)}\b", low)]
-        concrete = [w for w in CONCRETE_LEX if w in low]
-        simile = bool(re.search(r"\b(like|as if|comme|tel(?:le)?s?\s+que|à la manière)\b", low))
+        folded = fold(emo)
+        vague = [w for w in VAGUE_TERMS if re.search(rf"\b{re.escape(fold(w))}\b", folded)]
+        concrete = [w for w in CONCRETE_LEX_F if w in folded]
+        simile = bool(re.search(r"\b(like|as if|comme|tel(?:le)?s?\s+que|a la maniere)\b", folded))
         pn = has_proper_noun(emo)
         pts = 6  # filled
         if concrete: pts += 5
@@ -231,9 +246,10 @@ def score_brief(content: str):
     if not filled(steal):
         note = "missing - steal ONE move from a non-software discipline."
     else:
-        low = steal.lower()
-        non = [d for d in NONSOFTWARE if d in low]
-        soft = [d for d in SOFTWARE if re.search(rf"(?<!non-)\b{re.escape(d)}\b", low)]
+        folded = fold(steal)
+        # accent-insensitive: match folded text, but report the original word.
+        non = [orig for orig, f in zip(NONSOFTWARE, NONSOFTWARE_F) if f in folded]
+        soft = [d for d in SOFTWARE if re.search(rf"(?<!non-)\b{re.escape(fold(d))}\b", folded)]
         # "specific move": a second substantive line / a 'move' description
         lines = [l for l in steal.splitlines() if filled(l)]
         specific = len(lines) >= 2 or words(steal) >= 18

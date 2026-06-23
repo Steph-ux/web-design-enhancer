@@ -128,6 +128,46 @@ On s'inspire d'une autre landing page SaaS et du tableau de bord d'une appli.
 """
 
 
+# --- Mixed FR/EN + accent-stripped fixtures (risk #3: unpredictable scoring) --
+
+# A sharp brief whose two languages are interleaved in the SAME sections AND whose
+# French is typed WITHOUT accents (signaletique, gravee, defilement) — the exact
+# shape that scored B4 6/22 before accent-folding.
+MIXED = """# CREATIVE-BRIEF.md
+
+## Emotional Intent
+When someone lands here it should feel like the back room of an usine de pressage
+de vinyle at 3am, the smell of hot PVC, une seule ampoule nue above the press,
+comme attendre que the matrix cools down.
+
+## The One Unexpected Thing
+The catalogue has no visible pochette at first; each release is only its waveform
+gravee, enormous, full-width, et c est tout le pari.
+
+## Hero Dimension
+- [x] Motion
+- [ ] Typography
+- [ ] Colour
+
+## The Broken Rule
+We ignore le defilement vertical sage: the page scrolls horizontally like a sillon
+de vinyle, because that movement IS the label identity.
+
+## Design Read
+A catalogue site pour un label techno underground, raw language.
+
+## Design Dials
+- VARIANCE: **8**
+- MOTION: **9**
+- DENSITY: **3**
+
+## The Cross-Domain Steal
+The non-software discipline I steal: la signaletique des clubs de Berlin and vinyl
+pressing. The precise move: la lecture en spirale d un sillon, from outside toward
+a single central point.
+"""
+
+
 def run(tmp_path, text, *args):
     p = tmp_path / "CREATIVE-BRIEF.md"
     p.write_text(text, encoding="utf-8")
@@ -244,3 +284,42 @@ def test_rare_craft_steal_full_credit(tmp_path, discipline):
     data = json.loads(r.stdout)
     b4 = next(d for d in data["dimensions"] if d["id"] == "B4")
     assert b4["points"] == b4["max"]
+
+
+# --- Mixed FR/EN + accent-stripped (risk #3) ---------------------------------
+
+def test_mixed_fr_en_brief_passes(tmp_path):
+    # A sharp brief interleaving FR/EN in the same sections, with the French typed
+    # WITHOUT accents, must still clear PASS — language mixing is not a defect.
+    r = run(tmp_path, MIXED)
+    assert r.returncode == 0
+    assert "SHARP" in r.stdout
+
+
+def test_mixed_brief_accentless_steal_full_credit(tmp_path):
+    # "signaletique" (no accent) + "vinyl pressing" must earn full B4 — accent
+    # folding makes the accented lexicon match the unaccented input (regression:
+    # this scored B4 6/22 before fold()).
+    r = run(tmp_path, MIXED, "--json")
+    data = json.loads(r.stdout)
+    b4 = next(d for d in data["dimensions"] if d["id"] == "B4")
+    assert b4["points"] == b4["max"]
+
+
+def test_accentless_french_filler_still_blocked(tmp_path):
+    # Negative: stripping accents must NOT let filler sneak through. An accentless
+    # version of the FR filler ("moderne / professionnelle / epuree") stays blocked.
+    accentless = FILLER_FR.replace("épurée", "epuree").replace("élégante", "elegante")
+    r = run(tmp_path, accentless)
+    assert r.returncode == 1
+    assert "BLOCKED" in r.stdout
+
+
+def test_accentless_vague_terms_still_penalise_b1(tmp_path):
+    # The fold must cut BOTH ways: accent-stripped buzzwords ("epuree", "elegante")
+    # must still be caught as vague, or filler would score full B1 by dropping accents.
+    accentless = FILLER_FR.replace("épurée", "epuree").replace("élégante", "elegante")
+    r = run(tmp_path, accentless, "--json")
+    data = json.loads(r.stdout)
+    b1 = next(d for d in data["dimensions"] if d["id"] == "B1")
+    assert b1["points"] < b1["max"]
