@@ -252,6 +252,36 @@ pinned commit. This integration also hardened the detector itself: `detect_ai_sl
 now forces UTF-8 stdout so the indigo→violet gradient message can no longer crash
 a real run on a Windows cp1252 console.
 
+## FAQ
+
+### What is web-design-enhancer-pro?
+
+web-design-enhancer-pro is an open-source AI skill that eliminates generic "AI slop" in web design and enforces premium UI/UX. It automatically validates, blocks, and fixes generic AI model outputs before delivery, on both web and native mobile, through a sequence of automatic quality gates.
+
+### How is it different from a normal AI design prompt?
+
+By default, almost every AI generates the same website: a dark hero, a blue-to-purple gradient, a 3-column card grid and a blue CTA. This skill makes that impossible to deliver. An anti-template gate penalises generic slop while a Beauty Score gate rewards genuine craft, and a final vision pass judges whether the rendered result actually reads as human-made.
+
+### What do I have to do myself?
+
+One thing the skill cannot do for you: write a short Creative Brief (CREATIVE-BRIEF.md, four fields) that sets the point of view - what the page must make someone feel, the one unexpected bet, the hero dimension, and the rule you deliberately break. Everything after the brief is automatic.
+
+### Which frameworks and platforms does it support?
+
+Web stacks (HTML/CSS/JS, shadcn/ui, GSAP, Three.js) and native mobile: SwiftUI, Jetpack Compose, Flutter and React Native. Native audits hard-block touch targets under 44pt and missing safe-area handling.
+
+### Does it require an API key?
+
+No. The vision aesthetic review runs in agent mode using the executing model's own vision, with no API key required. An optional API mode (OpenAI or Anthropic) is available if you prefer.
+
+### What are the quality gates?
+
+Seven automatic gates run before each delivery: AI-slop detection, 8px spacing grid, WCAG 2.1 AA contrast, design-vs-code drift, accessibility, style-uniqueness (blocked above 65/100) and Beauty Score (blocked below 50/100). A mandatory rendered vision gate (gate 8) captures the live page with Playwright and cannot be bypassed.
+
+### Is it free and open source?
+
+Yes. It is open source on GitHub and vendors the brand-agnostic craft layer of nexu-io/open-design (Apache-2.0). It ships with 434 tests.
+
 ---
 
 ## Project structure
