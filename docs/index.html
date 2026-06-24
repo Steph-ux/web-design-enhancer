@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>web-design-enhancer-pro — Eliminate AI design slop, enforce premium UI/UX</title>
+  <meta name="description" content="Open-source AI skill that eliminates generic AI slop in web and mobile design and enforces premium UI/UX through sequential quality gates, ratio-based composition audits and a rendered vision pass.">
+  <meta name="author" content="Steph-ux">
+  <link rel="canonical" href="https://steph-ux.github.io/web-design-enhancer/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="web-design-enhancer-pro">
+  <meta property="og:title" content="web-design-enhancer-pro — Eliminate AI design slop">
+  <meta property="og:description" content="An AI skill that blocks generic AI design and enforces premium, human-grade UI/UX. Open source, 434 tests, web + native mobile.">
+  <meta property="og:url" content="https://steph-ux.github.io/web-design-enhancer/">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "web-design-enhancer-pro",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Cross-platform (Web, iOS, Android)",
+  "description": "An AI skill that eliminates generic AI slop in web design and enforces premium UI/UX via sequential quality gates, ratio-based layout/composition audits and a rendered vision pass.",
+  "url": "https://steph-ux.github.io/web-design-enhancer/",
+  "codeRepository": "https://github.com/Steph-ux/web-design-enhancer",
+  "programmingLanguage": "Python",
+  "author": {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": "Steph-ux",
+    "url": "https://github.com/Steph-ux"
+  },
+  "datePublished": "2026-06-24",
+  "dateModified": "2026-06-24",
+  "license": "https://github.com/Steph-ux/web-design-enhancer/blob/main/LICENSES/open-design-APACHE-2.0.txt",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "keywords": "AI design, anti-slop, UI/UX, design system, web design, accessibility, WCAG, GSAP, shadcn/ui, Claude Code, Codex"
+}
+  </script>
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "Steph-ux",
+  "url": "https://github.com/Steph-ux"
+}
+  </script>
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "web-design-enhancer-pro",
+  "url": "https://steph-ux.github.io/web-design-enhancer/",
+  "inLanguage": "en",
+  "datePublished": "2026-06-24",
+  "dateModified": "2026-06-24",
+  "about": {
+    "@type": "SoftwareApplication",
+    "name": "web-design-enhancer-pro"
+  },
+  "author": {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": "Steph-ux",
+    "url": "https://github.com/Steph-ux"
+  }
+}
+  </script>
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is web-design-enhancer-pro?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "web-design-enhancer-pro is an open-source AI skill that eliminates generic \"AI slop\" in web design and enforces premium UI/UX. It automatically validates, blocks, and fixes generic AI model outputs before delivery, on both web and native mobile, through a sequence of automatic quality gates."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How is it different from a normal AI design prompt?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "By default, almost every AI generates the same website: a dark hero, a blue-to-purple gradient, a 3-column card grid and a blue CTA. This skill makes that impossible to deliver. An anti-template gate penalises generic slop while a Beauty Score gate rewards genuine craft, and a final vision pass judges whether the rendered result actually reads as human-made."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What do I have to do myself?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "One thing the skill cannot do for you: write a short Creative Brief (CREATIVE-BRIEF.md, four fields) that sets the point of view - what the page must make someone feel, the one unexpected bet, the hero dimension, and the rule you deliberately break. Everything after the brief is automatic."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Which frameworks and platforms does it support?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Web stacks (HTML/CSS/JS, shadcn/ui, GSAP, Three.js) and native mobile: SwiftUI, Jetpack Compose, Flutter and React Native. Native audits hard-block touch targets under 44pt and missing safe-area handling."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it require an API key?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. The vision aesthetic review runs in agent mode using the executing model's own vision, with no API key required. An optional API mode (OpenAI or Anthropic) is available if you prefer."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What are the quality gates?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Seven automatic gates run before each delivery: AI-slop detection, 8px spacing grid, WCAG 2.1 AA contrast, design-vs-code drift, accessibility, style-uniqueness (blocked above 65/100) and Beauty Score (blocked below 50/100). A mandatory rendered vision gate (gate 8) captures the live page with Playwright and cannot be bypassed."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is it free and open source?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. It is open source on GitHub and vendors the brand-agnostic craft layer of nexu-io/open-design (Apache-2.0). It ships with 434 tests."
+      }
+    }
+  ]
+}
+  </script>
+  <style>
+    :root{--ink:#16161a;--sub:#55555f;--line:#e6e6e9;--bg:#fbfbf9;--accent:#1f5fff;--paper:#ffffff}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);
+      font:16px/1.6 ui-sans-serif,-apple-system,Segoe UI,Inter,Helvetica,Arial,sans-serif;
+      -webkit-font-smoothing:antialiased}
+    .wrap{max-width:860px;margin:0 auto;padding:0 22px}
+    header{padding:72px 0 36px}
+    .eyebrow{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--sub);margin:0 0 14px}
+    h1{font-size:clamp(30px,5vw,46px);line-height:1.08;letter-spacing:-.02em;margin:0 0 16px;font-weight:680}
+    .lede{font-size:19px;color:var(--sub);max-width:62ch;margin:0 0 26px}
+    .cta{display:inline-flex;gap:10px;align-items:center;background:var(--ink);color:#fff;
+      text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:600}
+    .cta.secondary{background:transparent;color:var(--ink);border:1px solid var(--line);margin-left:10px}
+    section{padding:30px 0;border-top:1px solid var(--line)}
+    h2{font-size:24px;letter-spacing:-.01em;margin:0 0 14px;font-weight:660}
+    h3{font-size:17px;margin:22px 0 6px;font-weight:640}
+    p{margin:0 0 14px;max-width:68ch}
+    ul{margin:0 0 14px;padding-left:20px}
+    li{margin:6px 0}
+    .stats{display:flex;flex-wrap:wrap;gap:14px;list-style:none;padding:0;margin:6px 0 0}
+    .stats li{flex:1 1 130px;background:var(--paper);border:1px solid var(--line);
+      border-radius:12px;padding:16px}
+    .stats b{display:block;font-size:26px;letter-spacing:-.02em}
+    .stats span{color:var(--sub);font-size:13px}
+    table{border-collapse:collapse;width:100%;margin:6px 0 4px;font-size:15px}
+    th,td{border:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}
+    th{background:var(--paper);font-weight:640}
+    code{background:#f1f1ee;padding:2px 6px;border-radius:6px;font-size:14px}
+    footer{padding:40px 0 70px;color:var(--sub);font-size:14px;border-top:1px solid var(--line)}
+    a{color:var(--accent)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <p class="eyebrow">Open-source AI skill</p>
+      <h1>Eliminate AI design slop. Enforce premium UI/UX.</h1>
+      <p class="lede"><strong>web-design-enhancer-pro</strong> is an open-source AI skill that automatically validates, blocks and fixes generic AI design output before delivery — on both web and native mobile.</p>
+      <a class="cta" href="https://github.com/Steph-ux/web-design-enhancer">View on GitHub</a>
+      <a class="cta secondary" href="#faq">Read the FAQ</a>
+    </header>
+
+    <section id="tldr">
+      <h2>TL;DR</h2>
+      <p>Left to itself, almost every AI ships the same website: a dark hero, a blue-to-purple gradient, a 3-column card grid and a blue button. web-design-enhancer-pro makes that impossible to deliver. It forces a deliberate visual point of view, then runs 8 quality gates — including a mandatory rendered vision pass — so only human-grade, on-brief design gets through. In short, web-design-enhancer-pro is a deterministic quality gate that sits between your AI and your users.</p>
+    </section>
+
+    <section id="features">
+      <h2>What it does</h2>
+      <ul>
+        <li><strong>Anti-template gate</strong> — penalises generic "AI slop" patterns (forbidden gradients, glassmorphism, emoji headings, fake stats).</li>
+        <li><strong>Beauty Score gate</strong> — rewards genuine craft; blocks delivery below 50/100.</li>
+        <li><strong>Style-uniqueness gate</strong> — blocks output that is more than 65/100 similar to the default template.</li>
+        <li><strong>Rendered vision pass</strong> — captures the live page with Playwright and judges whether it reads as human-made (no API key required).</li>
+        <li><strong>Ratio-based layout &amp; composition audits</strong> — spacing grid, typographic scale, focal hierarchy.</li>
+        <li><strong>Web + native mobile</strong> — HTML/CSS/JS, shadcn/ui, GSAP, Three.js, plus SwiftUI, Jetpack Compose, Flutter and React Native.</li>
+      </ul>
+    </section>
+
+    <section id="compare">
+      <h2>Default AI output vs. web-design-enhancer-pro</h2>
+      <table>
+        <thead><tr><th>Dimension</th><th>Default AI design</th><th>With web-design-enhancer-pro</th></tr></thead>
+        <tbody>
+          <tr><td>Visual identity</td><td>Generic template, interchangeable</td><td>Deliberate archetype from a Creative Brief</td></tr>
+          <tr><td>Quality control</td><td>None — ships as-is</td><td>8 sequential gates, hard-blocking</td></tr>
+          <tr><td>Aesthetic review</td><td>Text-only guesswork</td><td>Rendered vision pass on the live page</td></tr>
+          <tr><td>Accessibility</td><td>Often skipped</td><td>WCAG 2.1 AA contrast enforced</td></tr>
+          <tr><td>Mobile</td><td>Desktop-first afterthought</td><td>Touch targets &amp; safe-area hard-blocked</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="numbers">
+      <h2>By the numbers</h2>
+      <ul class="stats">
+        <li><b>434</b><span>automated tests (1 skipped)</span></li>
+        <li><b>10</b><span>design archetypes</span></li>
+        <li><b>8</b><span>quality gates</span></li>
+        <li><b>99/100</b><span>slop score on a bad sample</span></li>
+        <li><b>96/100</b><span>beauty score on a good sample</span></li>
+      </ul>
+    </section>
+
+    <section id="start">
+      <h2>Get started</h2>
+      <p>Use it as an AI agent skill (works with Claude Code, Codex and similar agents). Write a four-field <code>CREATIVE-BRIEF.md</code>, then let the gates run. Validate any build with:</p>
+      <ul>
+        <li><code>python scripts/check.py --final --code ./src</code> — full validation</li>
+        <li><code>pytest</code> — should display 434 passed (1 skipped)</li>
+      </ul>
+    </section>
+
+    <section id="faq">
+      <h2>Frequently asked questions</h2>
+      <h3>What is web-design-enhancer-pro?</h3>
+      <p>web-design-enhancer-pro is an open-source AI skill that eliminates generic "AI slop" in web design and enforces premium UI/UX. It automatically validates, blocks, and fixes generic AI model outputs before delivery, on both web and native mobile, through a sequence of automatic quality gates.</p>
+      <h3>How is it different from a normal AI design prompt?</h3>
+      <p>By default, almost every AI generates the same website: a dark hero, a blue-to-purple gradient, a 3-column card grid and a blue CTA. This skill makes that impossible to deliver. An anti-template gate penalises generic slop while a Beauty Score gate rewards genuine craft, and a final vision pass judges whether the rendered result actually reads as human-made.</p>
+      <h3>What do I have to do myself?</h3>
+      <p>One thing the skill cannot do for you: write a short Creative Brief (CREATIVE-BRIEF.md, four fields) that sets the point of view - what the page must make someone feel, the one unexpected bet, the hero dimension, and the rule you deliberately break. Everything after the brief is automatic.</p>
+      <h3>Which frameworks and platforms does it support?</h3>
+      <p>Web stacks (HTML/CSS/JS, shadcn/ui, GSAP, Three.js) and native mobile: SwiftUI, Jetpack Compose, Flutter and React Native. Native audits hard-block touch targets under 44pt and missing safe-area handling.</p>
+      <h3>Does it require an API key?</h3>
+      <p>No. The vision aesthetic review runs in agent mode using the executing model's own vision, with no API key required. An optional API mode (OpenAI or Anthropic) is available if you prefer.</p>
+      <h3>What are the quality gates?</h3>
+      <p>Seven automatic gates run before each delivery: AI-slop detection, 8px spacing grid, WCAG 2.1 AA contrast, design-vs-code drift, accessibility, style-uniqueness (blocked above 65/100) and Beauty Score (blocked below 50/100). A mandatory rendered vision gate (gate 8) captures the live page with Playwright and cannot be bypassed.</p>
+      <h3>Is it free and open source?</h3>
+      <p>Yes. It is open source on GitHub and vendors the brand-agnostic craft layer of nexu-io/open-design (Apache-2.0). It ships with 434 tests.</p>
+    </section>
+
+    <footer>
+      <p>Open source on <a href="https://github.com/Steph-ux/web-design-enhancer">GitHub</a> by Steph-ux. Vendors the craft layer of nexu-io/open-design (Apache-2.0). Updated 2026-06-24.</p>
+    </footer>
+  </div>
+</body>
+</html>
