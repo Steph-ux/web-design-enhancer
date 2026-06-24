@@ -114,6 +114,12 @@ def _fires(html, slop_type="html_copy_slop"):
              "<div class='tier'>Enterprise</div>", "C5 Starter/Pro/Enterprise"),
     (_HEAD + "<span class='badge'>New</span>", "C6 decorative New badge"),
     (_HEAD + "<ul><li>✨ Lightning fast</li></ul>", "C7 emoji li bullet"),
+    (_HEAD + "<h1>Decentralized. Trustless. Permissionless.</h1>", "C8 staccato crypto tagline"),
+    (_HEAD + "<h2>Fast. Secure. Decentralized.</h2>", "C8 staccato mixed crypto tagline"),
+    (_HEAD + "<p>The future of finance is here.</p>", "C9 the-future-of-finance"),
+    (_HEAD + "<p>Be your own bank.</p>", "C9 be-your-own-bank"),
+    (_HEAD + "<span>Powered by blockchain</span>", "C9 powered-by-blockchain"),
+    (_HEAD + "<p>Own your data. WAGMI.</p>", "C9 own-your-data + WAGMI"),
 ])
 def test_html_copy_slop_positive(html, label):
     assert _fires(html), f"{label}: expected HTML_COPY_SLOP to fire"
@@ -137,6 +143,12 @@ def test_html_copy_slop_positive(html, label):
     (_HEAD + "<span class='status'>In stock</span>", "C6 honest status, not badge=New"),
     # C7 — emoji mid-sentence in prose (allowed), not opening a <li>
     (_HEAD + "<li>Ships in 2 days \U0001F4E6 worldwide</li>", "C7 emoji mid-li"),
+    # C8 — a real sentence containing a web3 term, not a staccato slogan
+    (_HEAD + "<p>Our L2 uses a decentralized sequencer to guarantee finality.</p>", "C8 literal decentralized prose"),
+    # C8 — three short Title-Case sentences with NO crypto term (generic, not crypto-copy)
+    (_HEAD + "<p>Measured. Tested. Documented.</p>", "C8 generic staccato, no crypto word"),
+    # C9 — blockchain described honestly in prose, not the hype tagline
+    (_HEAD + "<p>We store audit logs on a private blockchain for tamper evidence.</p>", "C9 honest blockchain prose"),
 ])
 def test_html_copy_slop_negative(html, label):
     assert not _fires(html), (

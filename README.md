@@ -81,6 +81,16 @@ A real end-to-end run of the V2.1 pipeline for a small-batch cosmetics house —
 
 → Full details: [`references/design-archetypes.md`](references/design-archetypes.md)
 
+### Web3 / crypto: which archetype, and why a flashy "wow" gets blocked
+
+There is no dedicated crypto archetype, on purpose. For serious web3 — infrastructure, an L2, a wallet, a protocol — the right fit is **§6 Technical/Monochrome** (the Linear / Vercel register): zinc, dense, precise, tabular figures.
+
+The reason there is no "crypto" archetype is that the usual crypto visual language *is* the AI-slop palette. The glow, the blue→purple / cyan→blue mesh gradients, the glassmorphism and the gradient-clipped text are exactly what gates B7, B8, B9 and B12 already forbid. A generic "web3" hero gets blocked by design.
+
+That is a deliberate tension. The lazy crypto "wow" (glow + gradient + glass) is precisely the slop the skill refuses. The legitimate web3 wow is the real kind — a true 3D object (`three.js` / WebGL), disciplined scroll-driven motion (`gsap` / `ScrollTrigger`), oversized type — which `audit_wow.py` already rewards. The skill closes the clinquant shortcut and pushes you toward genuine ambition.
+
+The verbal tells are covered too: `detect_ai_slop.py` now flags crypto-copy slop — staccato taglines ("Decentralized. Trustless. Permissionless."), and hype filler ("The future of finance", "Be your own bank", "Powered by blockchain", WAGMI). State concretely what the protocol does and for whom instead.
+
 ---
 
 ## Example prompts
@@ -147,6 +157,16 @@ Build a cosmetics brand site that feels like a private atelier at closing time �
 ivory, thin type, vast whitespace, zero bright colour. The unexpected move: the
 product grid is a single column, one product per full viewport, scrolled slowly.
 Hero dimension: negative space. Break the rule that e-commerce needs a dense grid.
+```
+
+```text
+# Web3 protocol / L2 — §6 Technical/Monochrome, anchor: linear.app
+Build a landing page for a Layer-2 rollup that reads like precision infrastructure,
+not a token launch. Zinc monochrome, mono kickers, tabular gas / latency figures. The
+unexpected move: the hero is a single live three.js object — the rollup batch tree
+rotating slowly — and nothing glows. No gradient, no glassmorphism, no "Decentralized.
+Trustless. Permissionless." Hero dimension: motion (real 3D), not colour. Anchor on
+`linear.app`, never a crypto template.
 ```
 
 > **The pattern:** name the feeling, the one unexpected move, the hero dimension, and the rule you break — then anchor on a non-SaaS reference. That is exactly what Phase -1 (`CREATIVE-BRIEF.md`) and Phase 0 (anti-monoculture) enforce. These prompts just front-load it.

@@ -317,6 +317,17 @@ class AISloPDetector:
         # feature-list tell. Emoji mid-sentence in prose won't match.
         (r"<li[^>]*>\s*[\U0001F300-\U0001FAFF☀-➿✨✅⭐❤]",
          "Emoji as a <li> bullet (✨/🔒/✅) — decorative AI feature-list tell. Use a real icon set or plain markers (§9)"),
+        # C8 — Staccato crypto tagline ("Decentralized. Trustless. Permissionless.").
+        # Three Title-Case one-word slogans in a row, >=1 a web3 term. Case-sensitive
+        # (flags=0) so ordinary prose ("It is decentralized.") never matches; only the
+        # hero-slogan staccato fires. Visual web3 slop (gradients/glow/glass) lives in
+        # B7/B8/B9/B12; this is the verbal tell that was missing.
+        (r"(?=(?:[A-Z][\w-]*\.\s+){0,2}(?:Decentralized|Trustless|Permissionless|Non-?[Cc]ustodial|Self-?[Cc]ustodial|Censorship-?[Rr]esistant|Unstoppable|Sovereign|Composable|Borderless)\b)(?:[A-Z][\w-]*\.\s+){2}[A-Z][\w-]*\.",
+         "Staccato crypto tagline ('Decentralized. Trustless. Permissionless.') — three one-word slogans is the canonical web3 hero tell; write one concrete sentence about what the protocol does (§9)",
+         0),
+        # C9 — Web3 marketing-copy hype phrases (crypto buzzword filler).
+        (r"\b(?:the\s+future\s+of\s+finance|be\s+your\s+own\s+bank|own\s+your\s+(?:data|money|future|keys)|powered\s+by\s+(?:the\s+)?blockchain|web3[-\s]?native|not\s+your\s+keys,?\s*not\s+your\s+coins|money\s+legos|wagmi)\b",
+         "Web3 marketing-copy slop ('The future of finance', 'Be your own bank', 'Powered by blockchain', WAGMI…) — crypto hype filler; state concretely what the protocol does and for whom (§9)"),
     ]
 
     # -----------------------------------------------------------------------
