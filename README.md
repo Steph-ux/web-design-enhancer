@@ -91,6 +91,20 @@ That is a deliberate tension. The lazy crypto "wow" (glow + gradient + glass) is
 
 The verbal tells are covered too: `detect_ai_slop.py` now flags crypto-copy slop — staccato taglines ("Decentralized. Trustless. Permissionless."), and hype filler ("The future of finance", "Be your own bank", "Powered by blockchain", WAGMI). State concretely what the protocol does and for whom instead.
 
+### Rendering Example: CryptoVerse (§6 Technical/Monochrome, web3)
+
+A real end-to-end run of the pipeline for a blockchain settlement layer — the exact opposite of the default crypto template. Dark-first zinc monochrome, a single restrained amber accent (~3% of the surface, used only for the signature line and focus), Inter + JetBrains Mono, and the "wow" carried by a real `three.js` wireframe lattice in the hero rather than glow or gradient. The copy stays concrete throughout, so the new C8 / C9 crypto-copy patterns never fire. It clears both hard gates (slop **96/100**, design validation **PASS**) — while a deliberately *slop* variant of the same brand (staccato taglines + blue→purple gradients + glassmorphism + glow) is correctly **BLOCKED**. The proof works in both directions.
+
+![Hero — a real three.js lattice, no glow, no gradient](assets/cryptoverse-hero.png)
+
+![Capabilities — "Four guarantees, written into the protocol": concrete copy, no hype](assets/cryptoverse-platform.png)
+
+![Architecture — monospace spec table in the Linear / Vercel register](assets/cryptoverse-architecture.png)
+
+![Developers — a runnable code sample instead of buzzwords](assets/cryptoverse-developers.png)
+
+![Closing & footer — one primary CTA plus a text link, no inline form](assets/cryptoverse-closing.png)
+
 ---
 
 ## Example prompts
