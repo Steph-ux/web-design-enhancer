@@ -1,5 +1,17 @@
 # Changelog
 
+## V2.2 — orchestrator packaging + mandatory Eyes (Playwright MCP)
+
+### Changed
+- `SKILL.md` rewritten as thin mode-based orchestrator (progressive disclosure).
+- Workflows: `references/workflows/01-intent.md` … `04-gates.md`.
+- Eyes protocol: `references/vision-playwright.md` (MCP + mechanical AND).
+- Skip resistance: `references/rationalizations.md`.
+- `scripts/eyes_checklist.py` verifies Eyes artifacts.
+
+### Docs
+- README / docs gate map aligned (no more 7-gate drift).
+
 ## V2.1 — open-design craft integration (brand-agnostic only)
 
 Vendors the **brand-agnostic craft layer** of [`nexu-io/open-design`](https://github.com/nexu-io/open-design)

@@ -12,8 +12,23 @@ It forces the AI to:
 1. **Choose a visual style** adapted to the project (not the default template)
 2. **Validate the design** against a DESIGN.md contract
 3. **Block delivery** if the result looks like a generic template — *or* if it is technically clean but flat and soulless
+4. **See the live page** via **Eyes (Playwright MCP)** before claiming done — MCP vision **and** mechanical scripts, not either alone
 
-The two sides work together: an **anti-template** gate penalises generic slop, and a **Beauty Score** gate rewards genuine craft. A vision pass then judges whether the rendered result actually *reads as human-made*.
+The two sides of scoring work together: an **anti-template** gate penalises generic slop, and a **Beauty Score** gate rewards genuine craft. Eyes then judges whether the rendered result actually *reads as human-made*, is fluid, and works.
+
+### How the skill is packaged
+
+`SKILL.md` is a **thin orchestrator**: pick a mode (`greenfield`, `contract`, `implement`, `audit-fix`, `vision-only`), then load progressive workflows under [`references/workflows/`](references/workflows/) only as needed. Depth lives in those refs and in the scripts — not in a single wall of instructions.
+
+| Mode | Start here | Done when |
+|------|------------|-----------|
+| `greenfield` | [`01-intent.md`](references/workflows/01-intent.md) | Eyes + `check.py --final --code … --url …` green |
+| `contract` | `01-intent` → [`02-contract.md`](references/workflows/02-contract.md) | `--gate 0` and `--gate 1` green |
+| `implement` | [`03-implement.md`](references/workflows/03-implement.md) | Eyes + `--final --url` green |
+| `audit-fix` | [`04-gates.md`](references/workflows/04-gates.md) | Fix loop ≤3 + re-Eyes + `--final` green |
+| `vision-only` | [`vision-playwright.md`](references/vision-playwright.md) | Eyes rubric + artifacts under `./audit-results/` |
+
+**Core rule:** any mode that creates or changes UI is incomplete until **Eyes (Playwright MCP)** pass **and** mechanical gates are green. Scripts are source of truth for bans.
 
 ---
 
@@ -35,7 +50,7 @@ Reasoning: premium cosmetics → whitespace, thin typography,
 ivory + black palette, no blue/purple gradients.
 ```
 
-Then it codes with that precise style. At the end, it runs automatic validations — and if the result looks too much like a generic template, it is **blocked**.
+Then it codes with that precise style. Before delivery it runs **Eyes** on the live URL (Playwright MCP + mechanical capture) and the full gate map — and if the result looks too much like a generic template, it is **blocked**.
 
 **Everything after the brief is automatic.** You set the intent; the skill enforces the craft.
 
@@ -188,37 +203,63 @@ Trustless. Permissionless." Hero dimension: motion (real 3D), not colour. Anchor
 
 ---
 
-## The 7 automatic validation gates
+## Validation gates (unified map)
 
-Before each delivery, the AI runs:
+Canonical order and blocking rules live in [`references/workflows/04-gates.md`](references/workflows/04-gates.md). Short map:
+
+| ID | Tool | Blocking |
+|----|------|----------|
+| **G0** | Phase 0 + brief + sources | yes |
+| **G1** | `validate_design` + hash | yes |
+| **G2** | structural-lock | yes |
+| **F1** | `detect_ai_slop` | yes |
+| **F1b** | `audit_declared_antipatterns` | yes |
+| **F2** | `audit_spacing` | yes |
+| **F3** | `validate_design` final | yes |
+| **F4** | `diff_design_vs_code` | yes if `--code` |
+| **F5** | `audit_accessibility` | yes |
+| **F6** | `audit_style_uniqueness` | block if score > 65 |
+| **F7** | `audit_beauty` | block if score < 50 |
+| **F8** | `audit_gestures` | yes if < 2/3 gestures |
+| **F9** | visual report + aesthetic verdict | floor 62 / pass 80; self cannot authorize |
+| **F10** | `audit_layout` | L1–L3 block when `--url` |
+| **Eyes** | Playwright MCP rubric | **skill-level mandatory** |
+| **WOW** | `audit_wow` | when `--wow` (recommended for brand landings) |
+
+Pre-code gates:
 
 ```bash
-python3 scripts/check.py --final --code ./src
+python3 scripts/check.py --gate 0
+python3 scripts/check.py --gate 1
+python3 scripts/check.py --gate 2
 ```
 
-| Gate | Tool | What it blocks |
-|---|---|---|
-| 1 | `detect_ai_slop.py` | Emojis, fake stats, invented testimonials, system badges, glassmorphism, blue/purple gradients... |
-| 2 | `audit_spacing.py` | Spacings that are not multiples of 8px |
-| 3 | `validate_design.py` | WCAG AA contrast failures, off-spec typography, incomplete DESIGN.md |
-| 4 | `diff_design_vs_code.py` | Colors/fonts/animations that drift from DESIGN.md |
-| 5 | `audit_accessibility.py` | `<img>` without alt, `<button>` without type, inputs without labels, missing viewport meta... |
-| 6 | `audit_style_uniqueness.py` | **Score > 65/100 = delivery blocked** — design too close to the generic template |
-| 7 | `audit_beauty.py` | **Score < 50/100 = delivery blocked** — design is technically clean but flat and soulless (the positive mirror of gate 6) |
+Final pipeline (after Eyes on a live URL):
+
+```bash
+python3 scripts/check.py --final --code ./src --url http://localhost:3000
+# brand / marketing landings:
+python3 scripts/check.py --final --code ./src --url http://localhost:3000 --wow
+```
 
 ---
 
-## Mobile & vision (incl. the mandatory rendered gate 8)
+## Eyes (Playwright MCP) — mandatory before delivery
 
-| Tool | What it does |
-|---|---|
-| `audit_mobile.py` | Native mobile audit (SwiftUI / Jetpack Compose / Flutter / React Native). **Hard-blocks** touch targets < 44pt (M1) and missing safe-area handling (M2). |
-| `aesthetic_review.py` | Vision judgment of the rendered design — 7 dimensions including a human-vs-AI tell. Runs in `--mode agent` (the executing model uses its own vision, no API key) or `--mode api` (OpenAI / Anthropic). |
-| `visual_audit.py` | Playwright capture at 4 breakpoints, feeding the vision review. |
+**Eyes is part of the definition of done** for any mode that creates or changes UI. It is **MCP + mechanical scripts (AND, not OR)** — “looks fine in the JSX” is not Eyes.
 
-→ References: [`references/beauty-gestures.md`](references/beauty-gestures.md) · [`references/mobile-beauty.md`](references/mobile-beauty.md)
+| Path | Role |
+|------|------|
+| **Playwright MCP** | Agent navigates, resizes, screenshots, snapshots, samples fluidity/console. Answers: human? fluid? works? |
+| `visual_audit.py` | Multi-breakpoint capture → `audit-results/audit_report.json` |
+| `audit_layout.py` | Measured overflow / grid integrity when `--url` |
+| `aesthetic_review.py` / agent verdict | Structured non-self `aesthetic-verdict.json` |
+| `eyes_checklist.py` | Confirms minimum Eyes artifacts exist |
+| `audit_mobile.py` | Native mobile (SwiftUI / Compose / Flutter / RN). **Hard-blocks** touch targets < 44pt (M1) and missing safe-area handling (M2). |
 
-> **The rendered visual + vision pass is now gate 8 of `check.py --final` and cannot be bypassed.** Run `visual_audit.py` against your live server to produce `audit-results/audit_report.json`, write the aesthetic verdict to `audit-results/aesthetic-verdict.json`, then run `check.py --final --code ./src --url http://localhost:PORT`. Delivery is blocked unless both artifacts exist, are fresh (re-render after any source change), and pass.
+Protocol: [`references/vision-playwright.md`](references/vision-playwright.md) · craft: [`beauty-gestures.md`](references/beauty-gestures.md) · [`mobile-beauty.md`](references/mobile-beauty.md)
+
+> **You cannot bypass Eyes.** Navigate the live page with Playwright MCP (required viewports include **375px**), run `visual_audit.py` (+ layout), write a non-self aesthetic verdict, then `check.py --final --code ./src --url http://localhost:PORT`. Delivery is blocked unless artifacts exist, are fresh (re-Eyes after any source change), and pass. If MCP is unavailable, document degraded mode per the protocol — do not fake Eyes.
 
 ---
 
@@ -310,7 +351,7 @@ No. The vision aesthetic review runs in agent mode using the executing model's o
 
 ### What are the quality gates?
 
-Seven automatic gates run before each delivery: AI-slop detection, 8px spacing grid, WCAG 2.1 AA contrast, design-vs-code drift, accessibility, style-uniqueness (blocked above 65/100) and Beauty Score (blocked below 50/100). A mandatory rendered vision gate (gate 8) captures the live page with Playwright and cannot be bypassed.
+Pre-code gates **G0–G2** (Phase 0 / DESIGN.md / structural lock), then final **F1–F10** (slop, declared antipatterns, spacing, design validation, drift, a11y, uniqueness, beauty, gestures, visual+aesthetic, layout) via `check.py --final --code … --url …`. **Eyes (Playwright MCP)** is mandatory on top: live screenshots + mechanical artifacts + non-self verdict. Full map: [`references/workflows/04-gates.md`](references/workflows/04-gates.md).
 
 ### Is it free and open source?
 
@@ -322,13 +363,13 @@ Yes. It is open source on GitHub and vendors the brand-agnostic craft layer of n
 
 ```
 web-design-enhancer-pro/
-├── SKILL.md                          # Full skill instructions
+├── SKILL.md                          # Thin mode-based orchestrator (progressive disclosure)
 ├── CHANGELOG.md                      # Version history
 ├── NOTICE                            # Third-party attribution (open-design, Apache-2.0)
 ├── LICENSES/
 │   └── open-design-APACHE-2.0.txt    # Full Apache-2.0 license text
 ├── scripts/
-│   ├── check.py                      # Orchestrator for the 7 gates (+ mobile & vision)
+│   ├── check.py                      # Gate orchestrator (G0–G2 + F1–F10 + WOW)
 │   ├── detect_ai_slop.py             # AI pattern detector (G/A/B/C/D/H)
 │   ├── audit_accessibility.py        # WCAG 2.1 AA
 │   ├── audit_spacing.py              # 8px grid
@@ -339,12 +380,17 @@ web-design-enhancer-pro/
 │   ├── validate_design.py            # DESIGN.md contract validation
 │   ├── diff_design_vs_code.py        # Drift code vs DESIGN.md
 │   ├── sync_references.py            # Keep getdesign-references.csv in sync with getdesign
-│   ├── visual_audit.py               # Playwright 4 breakpoints capture
+│   ├── visual_audit.py               # Playwright multi-breakpoint capture
+│   ├── eyes_checklist.py             # Verifies Eyes artifacts before delivery claims
+│   ├── audit_layout.py               # Measured layout integrity (F10)
 │   ├── wde_measure.py                # V2 shared ratio/measurement primitives (DRY core)
 │   ├── audit_composition.py          # V2 geometry layer — focal/whitespace/rhythm/alignment
 │   ├── aesthetic_harden.py           # V2 vision-judge reliability harness (variance/anchors/evidence)
 │   └── refine_loop.py                # V2 iterative enhancement loop (measure→prioritise→converge)
 ├── references/
+│   ├── workflows/                    # Progressive workflows (01-intent … 04-gates)
+│   ├── vision-playwright.md          # Eyes — Playwright MCP protocol (mandatory)
+│   ├── rationalizations.md           # Skip-resistance (excuses → required action)
 │   ├── design-archetypes.md          # The 10 archetypes — full CSS tokens
 │   ├── beauty-gestures.md            # Signature gestures + font pairings per archetype
 │   ├── mobile-beauty.md              # Mobile craft & native conventions
