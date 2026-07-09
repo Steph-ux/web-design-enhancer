@@ -241,6 +241,25 @@ class DesignValidator:
             if font.lower() in generic_fonts:
                 self.errors.append(f"[ERROR] Generic font detected: {font}. Use Google Fonts or custom")
 
+    def _allows_display_excess(self, design_text: str) -> bool:
+        """True when brief commits Typography hero + documents because.
+
+        Deliberate H1 over the 80px readability cap is allowed only when:
+        1. CREATIVE-BRIEF.md (CWD) checks Typography under Hero Dimension, and
+        2. A "because" rationale appears in the brief and/or DESIGN.md §11.
+        """
+        brief_path = Path("CREATIVE-BRIEF.md")
+        brief = brief_path.read_text(encoding="utf-8") if brief_path.exists() else ""
+        hero_typo = bool(re.search(
+            r"Hero Dimension[\s\S]{0,400}?\[x\]\s*Typography",
+            brief,
+            re.I,
+        ))
+        because = bool(re.search(r"because\s+\S+", brief, re.I)) or bool(
+            re.search(r"##\s*11[\s\S]{0,500}because", design_text, re.I)
+        )
+        return hero_typo and because
+
     def _validate_hierarchy(self):
         """§4 — Validate typography size ranges.
 
@@ -250,6 +269,10 @@ class DesignValidator:
         - H3 18–36px  : card/sub-section title range
         - P  13–18px  : WCAG body-text readability (below = inaccessible, above = AI signal)
         - Small 11–14px : caption / meta
+
+        Exception: H1 may exceed 80px (up to 200px) when Typography is the
+        committed hero dimension and a "because" rationale is documented
+        (see _allows_display_excess). Above 200px always ERROR.
 
         §4 must be present. This validation closes the last subjective gap
         in the pipeline ("verifiable > subjective").
@@ -270,6 +293,8 @@ class DesignValidator:
             "p":     (13, 18),
             "small": (11, 14),
         }
+        # Absolute H1 safety cap even with Typography hero excess exemption
+        H1_ABSOLUTE_MAX = 200
 
         # Matches lines like "- **H1**: 48px / 700 / 1.2"
         # or "- **P (Paragraph)**: 16px ..." — capture the label and the first px value
@@ -278,6 +303,8 @@ class DesignValidator:
             r"^\s*-\s*\*\*\s*([A-Za-z]\w*)(?:\s*\([^)]+\))?\s*\*\*\s*:\s*(\d+)\s*px",
             re.MULTILINE
         )
+
+        allow_h1_excess = self._allows_display_excess(self.content)
 
         found_levels = set()
         for match in line_pattern.finditer(hierarchy_section):
@@ -293,10 +320,25 @@ class DesignValidator:
                     f"Expected range: {lo}-{hi}px."
                 )
             elif val > hi:
-                self.errors.append(
-                    f"[ERROR] §4 Hierarchy: {label.upper()} too large ({val}px). "
-                    f"Expected range: {lo}-{hi}px."
-                )
+                # H1 display excess: intentional Typography hero may exceed 80px
+                # as WARN; absolute absurdity (>200px) always ERROR.
+                if label == "h1" and allow_h1_excess and val <= H1_ABSOLUTE_MAX:
+                    self.warnings.append(
+                        f"[WARN] §4 Hierarchy: H1 exceeds standard range ({val}px > {hi}px) "
+                        f"but allowed as deliberate Typography hero (document 'because'). "
+                        f"Absolute cap: {H1_ABSOLUTE_MAX}px."
+                    )
+                elif label == "h1" and allow_h1_excess and val > H1_ABSOLUTE_MAX:
+                    self.errors.append(
+                        f"[ERROR] §4 Hierarchy: {label.upper()} too large ({val}px). "
+                        f"Exceeds absolute safety cap of {H1_ABSOLUTE_MAX}px "
+                        f"(even with Typography hero)."
+                    )
+                else:
+                    self.errors.append(
+                        f"[ERROR] §4 Hierarchy: {label.upper()} too large ({val}px). "
+                        f"Expected range: {lo}-{hi}px."
+                    )
 
         # At minimum H1 and P must be declared with px values
         if "h1" not in found_levels:
