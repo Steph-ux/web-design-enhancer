@@ -34,7 +34,7 @@ The two sides of scoring work together: an **anti-template** gate penalises gene
 
 ## Usage — what you do
 
-You do **one** thing the skill cannot do for you: write a short **Creative Brief** (`CREATIVE-BRIEF.md`, four fields) that sets the point of view — what the page must make someone *feel*, the one unexpected bet, the hero dimension, the rule you deliberately break. A model can pick a style; it cannot invent intent. This is the one genuinely human-in-the-loop step.
+You do **one** thing the skill cannot do for you: write a short **Creative Brief** (`CREATIVE-BRIEF.md`) that sets the point of view — emotional intent, the one unexpected bet, one hero dimension, a broken rule *with because*, Design Read, Design Dials, and a non-software Cross-Domain Steal. A model can pick a style; it cannot invent intent. This is the one genuinely human-in-the-loop step.
 
 Then you use the AI normally:
 
@@ -339,7 +339,7 @@ By default, almost every AI generates the same website: a dark hero, a blue-to-p
 
 ### What do I have to do myself?
 
-One thing the skill cannot do for you: write a short Creative Brief (CREATIVE-BRIEF.md, four fields) that sets the point of view - what the page must make someone feel, the one unexpected bet, the hero dimension, and the rule you deliberately break. Everything after the brief is automatic.
+One thing the skill cannot do for you: write a short Creative Brief (CREATIVE-BRIEF.md) with all required POV fields (intent, unexpected move, hero dimension, broken rule + because, Design Read, dials, cross-domain steal). Everything after the brief is automatic.
 
 ### Which frameworks and platforms does it support?
 

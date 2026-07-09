@@ -4,7 +4,9 @@
 > what a design *looks like*. It does not tell it what this design must make
 > someone *feel*, or what makes it un-generic. A model cannot invent a point of
 > view — you must impose one. `scripts/check.py --gate 0` reads this file and
-> **blocks** until all four fields are filled with real, specific content.
+> **blocks** until all required fields are filled with real, specific content
+> (Emotional Intent, Unexpected Thing, Hero Dimension, Broken Rule + because,
+> Design Read, Design Dials, Cross-Domain Steal).
 >
 > Replace every `___` and tick exactly one Hero Dimension box. Vague answers
 > ("professional", "modern", "clean") are flagged: they are the default the
