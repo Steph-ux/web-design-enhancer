@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wde.dev/schemas/evidence.schema.json",
+  "title": "WDE evidence envelope",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "check_id",
+    "status",
+    "executed_at",
+    "executor",
+    "tool_version",
+    "source_hash",
+    "result_digest"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "type": "string", "const": "3.0" },
+    "check_id": { "type": "string", "minLength": 1 },
+    "status": {
+      "type": "string",
+      "enum": ["passed", "failed", "warned", "skipped", "degraded"]
+    },
+    "executed_at": { "type": "string" },
+    "executor": {
+      "type": "string",
+      "description": "Must be wde-core or a registered runner — never the model freehand"
+    },
+    "tool_version": { "type": "string" },
+    "source_hash": { "type": "string" },
+    "contract_hash": { "type": "string" },
+    "environment": { "type": "object" },
+    "artifacts": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "result_digest": { "type": "string" },
+    "details": { "type": "object" },
+    "rule_category": {
+      "type": "string",
+      "enum": [
+        "safety_truth",
+        "accessibility_critical",
+        "user_requirement",
+        "brand_contract",
+        "functional_quality",
+        "anti_template_heuristic",
+        "taste_preference"
+      ]
+    }
+  }
+}

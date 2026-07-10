@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wde.dev/schemas/state.schema.json",
+  "title": "WDE project state (orchestrator-owned)",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "phase",
+    "updated_at",
+    "valid_checks",
+    "invalidated_checks",
+    "hashes",
+    "blockers",
+    "next_action",
+    "history"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "const": "3.0" },
+    "phase": { "type": "string" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "valid_checks": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "invalidated_checks": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "hashes": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "remediation": { "type": "string" }
+        }
+      }
+    },
+    "next_action": {
+      "type": "object",
+      "required": ["id", "summary"],
+      "properties": {
+        "id": { "type": "string" },
+        "summary": { "type": "string" },
+        "command": { "type": "string" },
+        "allowed_writer": {
+          "type": "string",
+          "enum": ["wde-core", "agent", "human"]
+        }
+      }
+    },
+    "history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["at", "from_phase", "to_phase", "via"],
+        "properties": {
+          "at": { "type": "string" },
+          "from_phase": { "type": "string" },
+          "to_phase": { "type": "string" },
+          "via": { "type": "string" },
+          "evidence_id": { "type": "string" }
+        }
+      }
+    },
+    "degraded_mode": { "type": "boolean" },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": { "type": "boolean" }
+    }
+  }
+}
