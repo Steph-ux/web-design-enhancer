@@ -1,108 +1,61 @@
 ---
 name: web-design-enhancer
 description: >
-  Use when building, redesigning, or validating web/UI against a DESIGN.md
-  contract; when landing pages or product UI risk generic AI slop; when a live
-  page needs visual QA before delivery. Not for pure backend, pure copywriting,
-  or Figma-only work with no implementation.
+  Use when building, redesigning, or validating web/UI with WDE V3 evidence
+  orchestration; when AI agents must follow authorized next steps and cannot
+  forge delivery. Not for pure backend or non-UI work.
 ---
 
-# Web Design Enhancer
+# Web Design Enhancer V3
 
-Enforces a design contract and blocks generic AI UI. **You do not invent a look from training priors** — you follow intent → anchors → lock → build → **Eyes (Playwright MCP)** → `check.py --final`.
+**The model proposes and implements. The orchestrator authorizes, verifies, and blocks.**
 
-**Core rule:** any mode that creates or changes UI is incomplete until Eyes pass (human / fluid / OK) **and** mechanical gates are green. Scripts are source of truth for bans — run them; do not re-memorize pattern codes.
+This file is the **thin skill adapter**. Do not invent gates — drive the CLI.
 
-## Non-bypassable pillars (read this)
-
-Agents **cannot invent** Phase 0. `check.py --gate 0` **blocks** if:
-
-1. You did **not** run Pillar 2: `search.py … --design-system … --persist` → fresh `design-system-output.md` and/or `design-system/**/MASTER.md`
-2. You did **not** run Pillar 1: `npx --yes getdesign@latest add <brand>` → fresh `getdesign-*.md` / `brand-*.md` **or** `<brand>/DESIGN.md`
-3. Artifacts are **older than the brief** or **>72h old** (stale reuse = fail)
-4. `DESIGN.md` §0 does not document the **real** commands
-
-**CLI truth:** flag is **`--persist`** (not a made-up `--save` — though `--save` is now a silent alias). Prefer `--persist --format markdown`.
-
-**Forbidden:** copying an old `getdesign-*.md` from another project; writing DESIGN.md from memory; claiming a brand without a fresh run.
-
-**Script root:** resolve the skill install path once, then always call scripts from there:
-
-```text
-SKILL = ~/.claude/skills/web-design-enhancer-pro   # or this repo
-python3 $SKILL/scripts/search.py "…" --design-system -p "…" --persist --format markdown
-npx --yes getdesign@latest add <brand>
-python3 $SKILL/scripts/check.py --gate 0
-```
-
-Show command output in the session. Presence of a file without a run = bypass = blocked.
-
-## Modes
-
-| Mode | Load first | Done when |
-|------|------------|-----------|
-| `greenfield` | `references/workflows/01-intent.md` | Eyes + `check.py --final --code … --url …` green |
-| `contract` | `references/workflows/01-intent.md` then `02-contract.md` | `check.py --gate 0` and `--gate 1` green (no code) |
-| `implement` | `references/workflows/03-implement.md` | Eyes + `--final --url` green |
-| `audit-fix` | `references/workflows/04-gates.md` | Fix loop ≤3 + re-Eyes + `--final` green |
-| `vision-only` | `references/vision-playwright.md` | Eyes rubric + artifacts under `./audit-results/` |
-
-Pick one mode from the user request. If unclear, use `greenfield`.
-
-## Greenfield checklist (default)
-
-1. **Intent** — fill `CREATIVE-BRIEF.md` from `templates/creative-brief-template.md` (all fields: Emotional Intent, Unexpected Thing, Hero Dimension, Broken Rule + because, Design Read, Design Dials, Cross-Domain Steal). Load: `references/workflows/01-intent.md`.
-2. **Craft aim** — name archetype + 2–3 gestures from `references/beauty-gestures.md` before any code.
-3. **Contract** — pillars + DESIGN.md. Load: `references/workflows/02-contract.md`. Run `python3 scripts/check.py --gate 0` then `--gate 1`.
-4. **Lock** — `structural-lock.md` (≥3 decisions). Run `--gate 2`. Declare stack + scope + breakpoints.
-5. **Build** — Load: `references/workflows/03-implement.md`. Implement only from DESIGN.md + gestures.
-6. **Eyes (mandatory)** — Load: `references/vision-playwright.md`. Playwright MCP navigate/resize/screenshot/snapshot/console; then `visual_audit.py` + `audit_layout.py`; write non-self `aesthetic-verdict.json`.
-7. **Final** — `python3 scripts/check.py --final --code <path> --url <url>` (add `--wow` for brand/marketing landings). Load: `references/workflows/04-gates.md` if red.
-8. **Fix** — max 3 iterations; re-Eyes after any UI change. Then stop and report if still red.
-
-## Red flags — STOP
-
-- Code before gate 2 green
-- “Done” without fresh `./audit-results/` (MCP screenshots + `audit_report.json` + `aesthetic-verdict.json`)
-- No 375px capture
-- `reviewer: self` / empty `memorable_idea`
-- Skipping getdesign or design-system-output
-- Tempted to skip → read `references/rationalizations.md`
-
-## Stack branch (before code)
-
-- **Vanilla HTML/CSS/JS** → CSS custom properties from DESIGN.md only
-- **React / Next.js** → shadcn/ui preferred for primitives, or justified design-system components; Tailwind spacing multiples of 8
-
-## Commands (canonical)
-
-Use **`$SKILL/scripts/…`** (skill install), not a random copy of the project.
+## Bootstrap
 
 ```bash
-# Phase 0 — BOTH pillars (must run; must be fresh)
-python3 $SKILL/scripts/search.py "<product>" --design-system -p "<Project>" --persist --format markdown
-npx --yes getdesign@latest add <brand>    # may write <brand>/DESIGN.md — gate accepts it
-
-python3 $SKILL/scripts/check.py --gate 0  # fails if pillars stale vs CREATIVE-BRIEF
-python3 $SKILL/scripts/check.py --gate 1
-python3 $SKILL/scripts/check.py --gate 2  # lock must match code if code exists
-python3 $SKILL/scripts/visual_audit.py --url http://localhost:3000 --output ./audit-results
-python3 $SKILL/scripts/audit_layout.py --url http://localhost:3000 --json
-python3 $SKILL/scripts/eyes_checklist.py --audit-output ./audit-results
-python3 $SKILL/scripts/check.py --final --code ./src --url http://localhost:3000
-python3 $SKILL/scripts/check.py --final --code ./src --url http://localhost:3000 --wow
+python -m wde.cli.main init --root <project>
+python -m wde.cli.main status --json --root <project>
+python -m wde.cli.main next --root <project>
 ```
 
-## Open when
+Follow only `next_action`. Deeper refs:
 
-| Need | File |
+| Need | Path |
 |------|------|
-| Brief fields | `templates/creative-brief-template.md` |
-| DESIGN.md skeleton | `templates/design-md-template.md` |
-| Gestures / fonts | `references/beauty-gestures.md` |
-| Archetypes | `references/design-archetypes.md` |
-| Eyes MCP protocol | `references/vision-playwright.md` |
-| Gate map / fix loop | `references/workflows/04-gates.md` |
-| Skip excuses | `references/rationalizations.md` |
-| Craft canon (indigo) | `references/craft/anti-ai-slop.md` |
-| Run bans | `python3 scripts/detect_ai_slop.py --design DESIGN.md --code . --json` |
+| Full adapter rules | `adapters/generic/ADAPTER.md` |
+| V3 docs | `docs/V3.md` |
+| Plan | `docs/superpowers/specs/2026-07-10-wde-v3-plan.md` |
+| Brief / UX / design templates | `templates/` |
+| Craft (V2 arsenal) | `references/` |
+| Eyes / Playwright protocol | `references/vision-playwright.md` + `wde review` |
+| Scripts (V2 checks) | `scripts/` via `wde run` |
+
+## Core loop
+
+```bash
+python -m wde.cli.main validate intent|experience|design|lock --root <project>
+python -m wde.cli.main run static --root <project>
+python -m wde.cli.main deliver-check --root <project>
+python -m wde.cli.main review --emit-package --url <url> --root <project>
+# independent judge → aesthetic-verdict.json (never self for delivery)
+python -m wde.cli.main review --url <url> --root <project>
+python -m wde.cli.main report --root <project>
+```
+
+## Forbidden
+
+- Hand-edit `.wde/state.json` / write `.wde/evidence/` as the model
+- Claim READY without independent review evidence
+- Invent metrics, testimonials, trusted-by
+- Skip pillars (use fresh `search.py --persist` + `npx getdesign`)
+
+## Benchmark / migrate
+
+```bash
+python -m wde.cli.main benchmark --corpus
+python -m wde.cli.main migrate-v2 --root <project>
+```
+
+V2 scripts remain under `scripts/` — invoked only through trusted `wde-core` checks.

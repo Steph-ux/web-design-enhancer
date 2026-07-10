@@ -1,0 +1,90 @@
+{
+  "schema_version": "3.0",
+  "description": "WDE V3 benchmark corpus (12 tasks). Smoke runners execute fully; others are structural/procedural shells.",
+  "tasks": [
+    {
+      "id": "b2b.technical_landing",
+      "title": "B2B technical landing",
+      "profile": "marketing-site",
+      "runner": "clean_static",
+      "hidden_criteria": ["no_fake_metrics", "single_primary_cta"]
+    },
+    {
+      "id": "brand.cosmetics",
+      "title": "Cosmetics brand site",
+      "profile": "marketing-site",
+      "runner": "clean_static",
+      "hidden_criteria": ["signature_declared", "no_generic_gradient"]
+    },
+    {
+      "id": "media.editorial",
+      "title": "Editorial media",
+      "profile": "editorial",
+      "runner": "clean_static",
+      "hidden_criteria": ["type_hierarchy", "measure_capped"]
+    },
+    {
+      "id": "portfolio.creative",
+      "title": "Creative portfolio",
+      "profile": "portfolio",
+      "runner": "clean_static",
+      "hidden_criteria": ["one_signature", "no_card_grid_default"]
+    },
+    {
+      "id": "dashboard.finance",
+      "title": "Financial dashboard",
+      "profile": "dashboard",
+      "runner": "clean_static",
+      "hidden_criteria": ["tabular_numbers", "semantic_status_color"]
+    },
+    {
+      "id": "form.signup_complex",
+      "title": "Complex signup form",
+      "profile": "product-app",
+      "runner": "forms_static",
+      "hidden_criteria": ["labels_present", "error_states_defined"]
+    },
+    {
+      "id": "app.empty_error_states",
+      "title": "App with empty/error states",
+      "profile": "product-app",
+      "runner": "states_static",
+      "hidden_criteria": ["empty_state", "error_state"]
+    },
+    {
+      "id": "site.multilingual",
+      "title": "Multilingual site",
+      "profile": "web-base",
+      "runner": "i18n_static",
+      "hidden_criteria": ["lang_attr", "no_fragile_concat"]
+    },
+    {
+      "id": "ecommerce.mobile",
+      "title": "Mobile e-commerce",
+      "profile": "ecommerce",
+      "runner": "clean_static",
+      "hidden_criteria": ["touch_targets", "no_h_overflow_intent"]
+    },
+    {
+      "id": "redesign.existing_identity",
+      "title": "Redesign with existing identity",
+      "profile": "marketing-site",
+      "runner": "migrate_then_static",
+      "hidden_criteria": ["preserves_brand_constraints"]
+    },
+    {
+      "id": "brief.vague",
+      "title": "Intentionally vague brief",
+      "profile": "web-base",
+      "runner": "vague_brief",
+      "hidden_criteria": ["intent_validation_fails_or_warns"]
+    },
+    {
+      "id": "brief.contradictory",
+      "title": "Contradictory brief",
+      "profile": "web-base",
+      "runner": "contradictory_brief",
+      "hidden_criteria": ["detects_tension"]
+    }
+  ]
+}
