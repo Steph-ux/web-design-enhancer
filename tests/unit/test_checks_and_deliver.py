@@ -33,6 +33,9 @@ def test_registry_has_v2_bridges():
     assert "slop.static" in ids
     assert "a11y.static" in ids
     assert "layout.browser" in ids
+    assert "visual.audit" in ids
+    assert "visual.aesthetic" in ids
+    assert "spacing.grid" in ids
 
 
 def test_stale_evidence_blocks_deliver_after_code_change(tmp_path: Path):

@@ -24,8 +24,11 @@ python -m wde.cli.main validate design
 python -m wde.cli.main validate lock
 # implement UI under STRUCTURAL-LOCK
 python -m wde.cli.main run static
-python -m wde.cli.main run browser --url http://localhost:5173
 python -m wde.cli.main deliver-check
+python -m wde.cli.main review --emit-package --url http://localhost:5173
+# independent judge writes audit-results/aesthetic-verdict.json
+python -m wde.cli.main review --url http://localhost:5173
+python -m wde.cli.main run browser --url http://localhost:5173
 ```
 
 ## Capabilities JSON (declare honestly)

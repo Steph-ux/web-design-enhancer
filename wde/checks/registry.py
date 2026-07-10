@@ -47,7 +47,8 @@ class CheckRegistry:
                 "beauty.score",
                 "gestures.archetype",
             ],
-            "browser": ["layout.browser"],
+            "browser": ["layout.browser", "visual.audit"],
+            "visual": ["visual.audit", "layout.browser", "visual.aesthetic"],
             "deliver": [
                 "slop.static",
                 "a11y.static",
@@ -62,6 +63,8 @@ class CheckRegistry:
                 "beauty.score",
                 "gestures.archetype",
                 "layout.browser",
+                "visual.audit",
+                "visual.aesthetic",
             ],
         }
         ids = profiles.get(name, profiles["static"])
@@ -80,12 +83,14 @@ def get_registry() -> CheckRegistry:
 
 def default_registry() -> CheckRegistry:
     from wde.checks.browser.layout import LayoutBrowserCheck
+    from wde.checks.browser.visual_audit import VisualAuditBrowserCheck
     from wde.checks.static.accessibility import AccessibilityStaticCheck
     from wde.checks.static.beauty import BeautyStaticCheck
     from wde.checks.static.gestures import GesturesStaticCheck
     from wde.checks.static.slop import SlopStaticCheck
     from wde.checks.static.spacing import SpacingStaticCheck
     from wde.checks.static.uniqueness import UniquenessStaticCheck
+    from wde.checks.visual.aesthetic import AestheticVerdictCheck
 
     reg = CheckRegistry()
     for c in (
@@ -96,6 +101,8 @@ def default_registry() -> CheckRegistry:
         BeautyStaticCheck(),
         GesturesStaticCheck(),
         LayoutBrowserCheck(),
+        VisualAuditBrowserCheck(),
+        AestheticVerdictCheck(),
     ):
         reg.register(c)
     return reg

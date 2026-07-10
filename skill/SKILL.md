@@ -44,7 +44,10 @@ Follow `next_action` only. Load deeper refs only when that action needs them:
 ```bash
 python -m wde.cli.main run static --root <project>
 python -m wde.cli.main deliver-check --root <project>
-# visual/independent review still required for READY_TO_DELIVER
+python -m wde.cli.main review --emit-package --url <url> --root <project>
+# Independent judge writes audit-results/aesthetic-verdict.json
+# (reviewer: independent-clone|independent|human — never self for delivery)
+python -m wde.cli.main review --url <url> --root <project>
 ```
 
 ## Migrating V2 projects

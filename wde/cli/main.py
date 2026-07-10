@@ -211,6 +211,61 @@ def cmd_validate(args: argparse.Namespace) -> int:
     return 0 if report.ok else 1
 
 
+def cmd_review(args: argparse.Namespace) -> int:
+    """Emit independent judge package; optionally process visual + aesthetic evidence."""
+    from wde.core.review import emit_review_package, process_review
+    from wde.reporting.console import print_results
+    from wde.checks.base import CheckResult
+
+    ctx = ProjectContext(_root(args))
+    if not ctx.exists():
+        print("ERROR: not a WDE project — run: wde init", file=sys.stderr)
+        return 1
+
+    if args.emit_package:
+        emitted = emit_review_package(ctx, url=args.url, run_audit=not args.skip_audit)
+        if args.json:
+            print(json.dumps(emitted, indent=2, ensure_ascii=False))
+        else:
+            print("Review package emitted (judge must write verdict — builder must not self-score).")
+            print(f"  package: {emitted.get('package_path')}")
+            print(f"  prompt:  {emitted.get('prompt_path')}")
+            print(f"  audit:   {emitted.get('audit_dir')}")
+            if not emitted.get("probe_ok"):
+                print("  WARN: URL not reachable — start dev server before audit")
+        return 0 if emitted.get("probe_ok") or args.skip_audit else 1
+
+    out = process_review(ctx, url=args.url, emit_only=False)
+    if args.json:
+        print(json.dumps(out, indent=2, ensure_ascii=False))
+    else:
+        print(f"package: {out.get('emitted', {}).get('package_path')}")
+        results = [
+            CheckResult(
+                check_id=r["check_id"],
+                status=r["status"],
+                severity=r.get("severity", "blocking"),
+                category=r.get("category", ""),
+                summary=r.get("summary", ""),
+                findings=[],
+            )
+            for r in (out.get("results") or [])
+            if isinstance(r, dict)
+        ]
+        if results:
+            print_results(results)
+        print(f"independence: {out.get('independence')}")
+        print(f"phase: {out.get('phase')}")
+        if out.get("independence") in {None, "weak", "unavailable"}:
+            print("NOTE: delivery not fully authorized without medium/strong independent review")
+    # Exit 0 only if ready or visual path clean
+    state = ctx.load_state()
+    if state.get("phase") == "READY_TO_DELIVER":
+        return 0
+    # package emitted is success for workflow even if aesthetic pending
+    return 0 if out.get("emitted") else 1
+
+
 def cmd_migrate_v2(args: argparse.Namespace) -> int:
     from wde.core.migrate_v2 import migrate_v2
 
@@ -315,7 +370,7 @@ def build_parser() -> argparse.ArgumentParser:
         "profile",
         nargs="?",
         default="static",
-        choices=["static", "mechanical", "browser", "deliver", "full"],
+        choices=["static", "mechanical", "browser", "visual", "deliver", "full"],
     )
     s.add_argument("--url", default=None, help="Override project.local_url (browser checks)")
     s.add_argument("--json", action="store_true")
@@ -350,6 +405,25 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--force", action="store_true")
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_migrate_v2)
+
+    s = sub.add_parser(
+        "review",
+        parents=[common],
+        help="Emit independent visual review package; process verdict if present",
+    )
+    s.add_argument("--url", default=None)
+    s.add_argument(
+        "--emit-package",
+        action="store_true",
+        help="Only emit judge package + optional visual_audit (no state advance)",
+    )
+    s.add_argument(
+        "--skip-audit",
+        action="store_true",
+        help="With --emit-package, do not run visual_audit.py",
+    )
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_review)
 
     return p
 
