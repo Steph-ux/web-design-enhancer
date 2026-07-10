@@ -31,10 +31,38 @@ class CheckRegistry:
     def profile(self, name: str) -> list[Check]:
         """Named profiles select check IDs (expand over time)."""
         profiles: dict[str, list[str]] = {
-            "static": ["slop.static", "a11y.static"],
-            "mechanical": ["slop.static", "a11y.static"],
+            "static": [
+                "slop.static",
+                "a11y.static",
+                "spacing.grid",
+                "style.uniqueness",
+                "beauty.score",
+                "gestures.archetype",
+            ],
+            "mechanical": [
+                "slop.static",
+                "a11y.static",
+                "spacing.grid",
+                "style.uniqueness",
+                "beauty.score",
+                "gestures.archetype",
+            ],
             "browser": ["layout.browser"],
-            "deliver": ["slop.static", "a11y.static"],
+            "deliver": [
+                "slop.static",
+                "a11y.static",
+                "spacing.grid",
+                "style.uniqueness",
+            ],
+            "full": [
+                "slop.static",
+                "a11y.static",
+                "spacing.grid",
+                "style.uniqueness",
+                "beauty.score",
+                "gestures.archetype",
+                "layout.browser",
+            ],
         }
         ids = profiles.get(name, profiles["static"])
         return self.by_ids(ids)
@@ -53,9 +81,21 @@ def get_registry() -> CheckRegistry:
 def default_registry() -> CheckRegistry:
     from wde.checks.browser.layout import LayoutBrowserCheck
     from wde.checks.static.accessibility import AccessibilityStaticCheck
+    from wde.checks.static.beauty import BeautyStaticCheck
+    from wde.checks.static.gestures import GesturesStaticCheck
     from wde.checks.static.slop import SlopStaticCheck
+    from wde.checks.static.spacing import SpacingStaticCheck
+    from wde.checks.static.uniqueness import UniquenessStaticCheck
 
     reg = CheckRegistry()
-    for c in (SlopStaticCheck(), AccessibilityStaticCheck(), LayoutBrowserCheck()):
+    for c in (
+        SlopStaticCheck(),
+        AccessibilityStaticCheck(),
+        SpacingStaticCheck(),
+        UniquenessStaticCheck(),
+        BeautyStaticCheck(),
+        GesturesStaticCheck(),
+        LayoutBrowserCheck(),
+    ):
         reg.register(c)
     return reg

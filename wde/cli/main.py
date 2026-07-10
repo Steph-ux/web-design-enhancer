@@ -168,6 +168,67 @@ def cmd_run(args: argparse.Namespace) -> int:
     return 1 if blocking else 0
 
 
+def cmd_validate(args: argparse.Namespace) -> int:
+    from wde.domains.contracts import (
+        apply_validation_transition,
+        validate_design,
+        validate_experience,
+        validate_intent,
+        validate_lock,
+    )
+
+    ctx = ProjectContext(_root(args))
+    if not ctx.exists():
+        print("ERROR: not a WDE project — run: wde init", file=sys.stderr)
+        return 1
+
+    target = args.target
+    validators = {
+        "intent": validate_intent,
+        "experience": validate_experience,
+        "design": validate_design,
+        "lock": validate_lock,
+    }
+    if target not in validators:
+        print(f"ERROR: unknown target {target}", file=sys.stderr)
+        return 2
+    report = validators[target](ctx.root)
+    apply_validation_transition(ctx, target, report)
+    state = ctx.load_state()
+
+    payload = {"validation": report.to_dict(), "phase": state.get("phase")}
+    if args.json:
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+    else:
+        status = "OK" if report.ok else "FAIL"
+        print(f"validate {target}: {status}")
+        for i in report.issues:
+            print(f"  [{i.severity}] {i.code}: {i.message}")
+            if i.remediation:
+                print(f"    → {i.remediation}")
+        print(f"phase: {state.get('phase')}")
+        print(f"next:  {(state.get('next_action') or {}).get('command')}")
+    return 0 if report.ok else 1
+
+
+def cmd_migrate_v2(args: argparse.Namespace) -> int:
+    from wde.core.migrate_v2 import migrate_v2
+
+    report = migrate_v2(_root(args), force=args.force)
+    if args.json:
+        print(json.dumps(report, indent=2, ensure_ascii=False))
+    else:
+        print(f"migrate-v2 → phase={report.get('phase')}")
+        for a in report.get("actions") or []:
+            print(f"  action: {a}")
+        for w in report.get("warnings") or []:
+            print(f"  warn: {w}")
+        if report.get("suggested_next"):
+            print(f"  next: {report['suggested_next']}")
+        print("NOTE: never auto-marks READY_TO_DELIVER — re-run all checks")
+    return 0
+
+
 def cmd_deliver_check(args: argparse.Namespace) -> int:
     """Re-hash sources, re-run mechanical checks, reject stale/forged evidence."""
     from wde.core.runner import deliver_check
@@ -248,17 +309,29 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser(
         "run",
         parents=[common],
-        help="Run a check profile: static | mechanical | browser | deliver",
+        help="Run a check profile: static | mechanical | browser | deliver | full",
     )
     s.add_argument(
         "profile",
         nargs="?",
         default="static",
-        choices=["static", "mechanical", "browser", "deliver"],
+        choices=["static", "mechanical", "browser", "deliver", "full"],
     )
     s.add_argument("--url", default=None, help="Override project.local_url (browser checks)")
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_run)
+
+    s = sub.add_parser(
+        "validate",
+        parents=[common],
+        help="Validate intent | experience | design | lock contracts",
+    )
+    s.add_argument(
+        "target",
+        choices=["intent", "experience", "design", "lock"],
+    )
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_validate)
 
     s = sub.add_parser(
         "deliver-check",
@@ -268,6 +341,15 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--url", default=None)
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_deliver_check)
+
+    s = sub.add_parser(
+        "migrate-v2",
+        parents=[common],
+        help="Import V2 artifacts into .wde (never marks ready-to-deliver)",
+    )
+    s.add_argument("--force", action="store_true")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_migrate_v2)
 
     return p
 

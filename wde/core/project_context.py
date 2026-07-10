@@ -206,7 +206,7 @@ def init_project(root: Path, *, force: bool = False) -> ProjectContext:
     (ctx.wde / CAPABILITIES_FILE).write_text(
         json.dumps(caps, indent=2) + "\n", encoding="utf-8"
     )
-    # Touch brief template hint if missing
+    # Touch contract stubs if missing
     brief = root / "CREATIVE-BRIEF.md"
     if not brief.is_file():
         brief.write_text(
@@ -225,4 +225,11 @@ def init_project(root: Path, *, force: bool = False) -> ProjectContext:
             "The non-software discipline: ___\nThe specific move: ___\n",
             encoding="utf-8",
         )
+    exp = root / "EXPERIENCE-CONTRACT.md"
+    if not exp.is_file():
+        tmpl = Path(__file__).resolve().parents[2] / "templates" / "experience-contract-template.md"
+        if tmpl.is_file():
+            exp.write_text(tmpl.read_text(encoding="utf-8"), encoding="utf-8")
+        else:
+            exp.write_text("# EXPERIENCE-CONTRACT.md\n\n## Product goal\n\n___\n", encoding="utf-8")
     return ctx
