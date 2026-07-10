@@ -17,6 +17,10 @@ Load this file when tempted to skip a phase, gate, Eyes, or provenance rule unde
 | “Archetype replaces getdesign” | False — pillars are mandatory for gate 0 |
 | “User said ship fast” | Deliver incomplete openly, or finish Eyes; skill does not authorize silent skip |
 | “I’ll write the brief later” | No Phase 0 without brief quality floor |
+| “getdesign file already exists” | Must re-run if older than brief or >72h — presence ≠ Phase 0 |
+| “I’ll invent Sources §0 from memory” | gate 0 requires real fresh artifacts + documented commands |
+| “Pro Max suggested blue crypto fonts — skip the tool” | Run the tool first; reject defaults in writing after |
+| “Lock says board, cards ship faster” | final/gate2 lock-vs-code blocks board-promised / cards-delivered |
 
 ### How to answer each (agent behavior)
 
@@ -29,6 +33,10 @@ Load this file when tempted to skip a phase, gate, Eyes, or provenance rule unde
 | Archetype = getdesign | Keep getdesign anchors + Cross-Domain Steal; archetype is not a pillar replacement |
 | Ship fast | State what is missing (e.g. “UI ready; Eyes not run”) or finish Eyes — no fake green |
 | Brief later | Stop code; complete creative brief quality floor first |
+| getdesign already exists | Delete/overwrite via fresh `npx getdesign@latest add <brand>`; re-run gate 0 |
+| Invent Sources | Run pillars; only then fill §0 with real paths |
+| Skip Pro Max tool | Run `search.py --design-system --save`; document overrides |
+| Lock vs cards | Implement board rows/table or rewrite lock honestly |
 
 ---
 
@@ -41,7 +49,9 @@ If any of these appear, **STOP**. Do not continue toward a delivery claim until 
 - Verdict without real screenshot paths  
 - No mobile (375) capture  
 - Invented getdesign file / empty design-system-output  
-- Structural lock that does not match actual layout  
+- **Stale** getdesign or design-system-output (older than brief or months old)  
+- Structural lock that does not match actual layout (board promised → cards shipped)  
+- Claiming pillar runs without tool stdout in the session  
 
 ### Additional hard-stop companions (same spirit)
 

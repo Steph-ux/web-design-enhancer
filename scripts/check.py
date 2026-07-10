@@ -24,6 +24,7 @@ import csv
 import hashlib
 import argparse
 import subprocess
+import time
 from pathlib import Path
 from datetime import datetime
 
@@ -47,6 +48,11 @@ DESIGN_FILE  = Path("DESIGN.md")
 LOCK_FILE    = Path("structural-lock.md")
 BRIEF_FILE   = Path("CREATIVE-BRIEF.md")
 REFERENCES_CSV = DATA_DIR / "getdesign-references.csv"
+# Pillar artifacts older than this (hours) fail gate 0 even if files exist.
+# Closes: reusing a June getdesign while claiming "npx getdesign" in a July session.
+PILLAR_MAX_AGE_HOURS = float(os.environ.get("WDE_PILLAR_MAX_AGE_HOURS", "72"))
+# Pillar mtime must be >= brief mtime - this skew (seconds). Stale reuse fails.
+PILLAR_BRIEF_SKEW_SEC = float(os.environ.get("WDE_PILLAR_BRIEF_SKEW_SEC", "60"))
 
 # Gates whose validity depends on the content of DESIGN.md
 DESIGN_DEPENDENT_GATES = {"gate0", "gate1"}
@@ -425,6 +431,121 @@ def check_creative_brief():
     return errors, warnings
 
 
+# --- Pillar freshness (anti-reuse) -----------------------------------------
+
+def _check_pillar_freshness(label, files, errors):
+    """Block stale pillar artifacts that agents reuse without re-running tools.
+
+    Rules (both must hold for every file):
+      1. mtime is not older than PILLAR_MAX_AGE_HOURS (default 72h)
+      2. if CREATIVE-BRIEF.md exists, each pillar mtime >= brief mtime - skew
+         (pillars must be produced *for this brief*, not recycled from months ago)
+    """
+    if not files:
+        return
+    now = time.time()
+    brief_m = BRIEF_FILE.stat().st_mtime if BRIEF_FILE.exists() else None
+    for f in files:
+        try:
+            m = f.stat().st_mtime
+        except OSError:
+            fail(f"{label}: cannot stat {f.name}")
+            errors.append(f"{label} unreadable: {f.name}")
+            continue
+        age_h = (now - m) / 3600.0
+        if age_h > PILLAR_MAX_AGE_HOURS:
+            fail(
+                f"{label} '{f.name}' is {age_h:.0f}h old (max {PILLAR_MAX_AGE_HOURS:.0f}h) — "
+                f"RE-RUN the tool. Presence alone is not Phase 0."
+            )
+            info("Reusing a prior getdesign/design-system file is a silent bypass of the pillars.")
+            errors.append(f"{label} stale age: {f.name}")
+            continue
+        if brief_m is not None and m + PILLAR_BRIEF_SKEW_SEC < brief_m:
+            fail(
+                f"{label} '{f.name}' is OLDER than CREATIVE-BRIEF.md — re-run the pillar "
+                f"*after* the brief. Do not claim Phase 0 with recycled artifacts."
+            )
+            info(f"Brief mtime > artifact mtime → file was not produced for this brief.")
+            errors.append(f"{label} older than brief: {f.name}")
+            continue
+        ok(f"{label} freshness OK ({f.name}, age {age_h:.1f}h)")
+
+
+def _read_code_corpus(code_path=None, max_chars=400_000):
+    """Concatenate project source for structural-lock vs code checks."""
+    root = Path(code_path) if code_path else Path(".")
+    if not root.exists():
+        return ""
+    exts = {".html", ".htm", ".css", ".scss", ".jsx", ".tsx", ".js", ".ts", ".vue", ".svelte", ".astro"}
+    skip_dirs = {"node_modules", "dist", "build", ".git", "audit-results", "__pycache__"}
+    chunks = []
+    total = 0
+    for p in sorted(root.rglob("*")):
+        if not p.is_file() or p.suffix.lower() not in exts:
+            continue
+        if any(part in skip_dirs for part in p.parts):
+            continue
+        try:
+            text = p.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        chunks.append(text)
+        total += len(text)
+        if total >= max_chars:
+            break
+    return "\n".join(chunks)
+
+
+def _check_lock_vs_code(lock_content, errors, code_path=None):
+    """If structural-lock promises a non-card / board layout, code must not be a pure card grid.
+
+    Closes: lock says 'departure board NOT cards' while App.jsx still ships product-card grids.
+    Only runs when the lock explicitly promises board/invoice/table layout.
+    """
+    low = lock_content.lower()
+    promises_board = bool(re.search(
+        r"departure\s*board|invoice\s*board|bill[\s-]?of[\s-]?lading|"
+        r"not\s+(?:a\s+)?(?:product\s+)?cards?|no\s+product\s+cards?|"
+        r"fixed\s+columns|role=[\"']table[\"']|\bdatagrid\b|\bdata-table\b",
+        low,
+    ))
+    if not promises_board:
+        return
+
+    corpus = _read_code_corpus(code_path)
+    if not corpus:
+        warn("structural-lock promises board layout but no code found yet to verify — OK pre-code")
+        return
+
+    board_signals = len(re.findall(
+        r"board-row|board-table|role=[\"']table[\"']|departure-board|"
+        r"class(?:Name)?=[\"'][^\"']*board[^\"']*[\"']|data-layout=[\"']board[\"']",
+        corpus,
+        re.I,
+    ))
+    card_signals = len(re.findall(
+        r"product-card|class(?:Name)?=[\"'][^\"']*\bcard\b[^\"']*[\"']",
+        corpus,
+        re.I,
+    ))
+
+    if board_signals == 0 and card_signals >= 4:
+        fail(
+            "structural-lock promises board/invoice layout but code is still a product-card grid "
+            f"(board signals={board_signals}, card-like classes≈{card_signals}). "
+            "Implement the locked structure or rewrite the lock to match reality."
+        )
+        errors.append("structural-lock vs code: board promised, cards delivered")
+    elif board_signals > 0:
+        ok(f"structural-lock board promise reflected in code (board signals={board_signals})")
+    else:
+        warn(
+            "structural-lock mentions board layout; few board/card class signals found — "
+            "ensure the live DOM matches the lock before delivery."
+        )
+
+
 # --- Gate 0 — Phase 0 execution proof --------------------------------------
 
 def check_gate0():
@@ -455,23 +576,27 @@ def check_gate0():
                     "(filler, not a point of view). Sharpen it before Phase 0."
                 )
 
-    # 1. design-system-output.md
+    # 1. design-system-output.md  (Pillar 2 — UI/UX Pro Max / search.py)
     ds_files = list(Path(".").glob("design-system-output*.md"))
     if ds_files:
         ok(f"design-system-output.md found ({ds_files[0].name})")
+        _check_pillar_freshness("Pillar 2 (search.py / Pro Max)", ds_files, errors)
     else:
         fail("design-system-output.md missing")
-        info("Run: python3 scripts/search.py \"<description>\" --design-system -p \"<Project>\" --save")
+        info("You MUST run (not invent) search.py from the skill scripts directory:")
+        info("  python3 <SKILL>/scripts/search.py \"<description>\" --design-system -p \"<Project>\" --save")
         errors.append("search.py not executed")
 
-    # 2. getdesign reference DESIGN.md
+    # 2. getdesign reference (Pillar 1 — real brand anchor)
     getdesign_files = list(Path(".").glob("getdesign-*.md")) + list(Path(".").glob("brand-*.md"))
     if getdesign_files:
         ok(f"getdesign.md reference found ({getdesign_files[0].name})")
+        _check_pillar_freshness("Pillar 1 (getdesign)", getdesign_files, errors)
         _check_reference_diversity(getdesign_files)
     else:
         fail("No getdesign.md reference file found")
-        info("Run: npx getdesign@latest add <brand>")
+        info("You MUST run (not invent / not reuse a foreign project dump):")
+        info("  npx getdesign@latest add <brand>")
         info("Brand examples: vercel / stripe / linear.app (SaaS) — but add at least one")
         info("non-SaaS anchor: wired / ferrari / nike / nintendo-2001 (anti-monoculture)")
         errors.append("getdesign.md not executed")
@@ -492,6 +617,15 @@ def check_gate0():
                 fail("DESIGN.md still contains unfilled placeholders")
                 info("Replace all [Ex: ...] and <placeholder> with real values")
                 errors.append("Unfilled placeholders in DESIGN.md")
+            # Require named commands in Sources (stops pure fiction without tool names)
+            has_search = bool(re.search(r"search\.py|design-system", content, re.I))
+            has_getdesign = bool(re.search(r"getdesign|npx getdesign", content, re.I))
+            if not has_search:
+                fail("DESIGN.md §0 must document the search.py / design-system command actually run")
+                errors.append("Sources Phase 0 missing search.py evidence")
+            if not has_getdesign:
+                fail("DESIGN.md §0 must document the getdesign brand/command actually run")
+                errors.append("Sources Phase 0 missing getdesign evidence")
         else:
             fail("Section '## 0. Sources Phase 0' missing from DESIGN.md")
             info("Use templates/design-md-template.md as a base")
@@ -629,6 +763,11 @@ def check_gate2():
     else:
         warn("Stack unknown — run check.py --gate 0 first to enable stack validation")
 
+    # ── 6. Lock vs code (when code already exists) ───────────────────────
+    # If the agent already wrote UI, the lock must not be fiction.
+    # Pre-code sessions: corpus empty → no block.
+    _check_lock_vs_code(lock_content, errors, code_path=None)
+
     _print_result(errors, "GATE 2")
     if not errors:
         mark_passed("gate2")
@@ -658,6 +797,14 @@ def check_final(code_path=None, verbose=False, url=None, audit_output="./audit-r
     ok("Gate 2 validated")
 
     errors = []
+
+    # Re-check lock vs delivered code (gate 2 may have run pre-code)
+    if LOCK_FILE.exists() and code_path:
+        _check_lock_vs_code(
+            LOCK_FILE.read_text(encoding="utf-8"),
+            errors,
+            code_path=code_path,
+        )
 
     # F1. detect_ai_slop.py
     print(f"\n{CYAN}[F1] Detecting AI antipatterns (HTML + CSS + JSX + code quality)...{RESET}")

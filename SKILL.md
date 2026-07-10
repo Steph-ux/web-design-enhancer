@@ -13,6 +13,28 @@ Enforces a design contract and blocks generic AI UI. **You do not invent a look 
 
 **Core rule:** any mode that creates or changes UI is incomplete until Eyes pass (human / fluid / OK) **and** mechanical gates are green. Scripts are source of truth for bans — run them; do not re-memorize pattern codes.
 
+## Non-bypassable pillars (read this)
+
+Agents **cannot invent** Phase 0. `check.py --gate 0` **blocks** if:
+
+1. You did **not** run Pillar 2: `search.py … --design-system … --save` → fresh `design-system-output*.md`
+2. You did **not** run Pillar 1: `npx getdesign@latest add <brand>` → fresh `getdesign-*.md` / `brand-*.md`
+3. Artifacts are **older than the brief** or **>72h old** (stale reuse = fail)
+4. `DESIGN.md` §0 does not document the **real** commands
+
+**Forbidden:** copying an old `getdesign-*.md` from another project; writing DESIGN.md from memory; claiming “Bugatti” without a fresh run.
+
+**Script root:** resolve the skill install path once, then always call scripts from there:
+
+```text
+SKILL = ~/.claude/skills/web-design-enhancer-pro   # or this repo
+python3 $SKILL/scripts/search.py "…" --design-system -p "…" --save
+npx getdesign@latest add <brand>
+python3 $SKILL/scripts/check.py --gate 0
+```
+
+Show command output in the session. Presence of a file without a run = bypass = blocked.
+
 ## Modes
 
 | Mode | Load first | Done when |
@@ -52,17 +74,21 @@ Pick one mode from the user request. If unclear, use `greenfield`.
 
 ## Commands (canonical)
 
+Use **`$SKILL/scripts/…`** (skill install), not a random copy of the project.
+
 ```bash
-python3 scripts/search.py "<product>" --design-system -p "<Project>" --save
-npx getdesign@latest add <brand>
-python3 scripts/check.py --gate 0
-python3 scripts/check.py --gate 1
-python3 scripts/check.py --gate 2
-python3 scripts/visual_audit.py --url http://localhost:3000 --output ./audit-results
-python3 scripts/audit_layout.py --url http://localhost:3000 --json
-python3 scripts/eyes_checklist.py --audit-output ./audit-results
-python3 scripts/check.py --final --code ./src --url http://localhost:3000
-python3 scripts/check.py --final --code ./src --url http://localhost:3000 --wow
+# Phase 0 — BOTH pillars (must run; must be fresh)
+python3 $SKILL/scripts/search.py "<product>" --design-system -p "<Project>" --save
+npx getdesign@latest add <brand>          # re-run even if an old getdesign-*.md exists
+
+python3 $SKILL/scripts/check.py --gate 0  # fails if pillars stale vs CREATIVE-BRIEF
+python3 $SKILL/scripts/check.py --gate 1
+python3 $SKILL/scripts/check.py --gate 2  # lock must match code if code exists
+python3 $SKILL/scripts/visual_audit.py --url http://localhost:3000 --output ./audit-results
+python3 $SKILL/scripts/audit_layout.py --url http://localhost:3000 --json
+python3 $SKILL/scripts/eyes_checklist.py --audit-output ./audit-results
+python3 $SKILL/scripts/check.py --final --code ./src --url http://localhost:3000
+python3 $SKILL/scripts/check.py --final --code ./src --url http://localhost:3000 --wow
 ```
 
 ## Open when
