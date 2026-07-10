@@ -433,6 +433,59 @@ def check_creative_brief():
 
 # --- Pillar freshness (anti-reuse) -----------------------------------------
 
+def _find_design_system_artifacts():
+    """Pillar 2 outputs: root design-system-output*.md and/or design-system/**/MASTER.md."""
+    found = list(Path(".").glob("design-system-output*.md"))
+    master = list(Path(".").glob("design-system/**/MASTER.md"))
+    # Prefer unique paths
+    seen = set()
+    out = []
+    for p in found + master:
+        try:
+            key = p.resolve()
+        except OSError:
+            key = p
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(p)
+    return out
+
+
+def _find_getdesign_artifacts():
+    """Pillar 1 outputs: getdesign-*.md, brand-*.md, or <brand>/DESIGN.md from npx getdesign."""
+    found = list(Path(".").glob("getdesign-*.md")) + list(Path(".").glob("brand-*.md"))
+    skip_dirs = {
+        "src", "node_modules", "dist", "build", "public", "design-system",
+        "audit-results", ".git", "scripts", "tests", "references", "data",
+        "templates", "docs", "assets", "examples",
+    }
+    for p in Path(".").iterdir():
+        if not p.is_dir() or p.name in skip_dirs or p.name.startswith("."):
+            continue
+        candidate = p / "DESIGN.md"
+        if candidate.is_file():
+            # Avoid treating a nested copy of the project contract as a brand ref:
+            # brand dumps from getdesign usually mention version/name in frontmatter
+            # or are not the project's own contract (project contract is ./DESIGN.md).
+            found.append(candidate)
+    seen = set()
+    out = []
+    for p in found:
+        try:
+            key = p.resolve()
+        except OSError:
+            key = p
+        if key in seen:
+            continue
+        # Never count the project root DESIGN.md as a getdesign reference
+        if p.resolve() == (Path(".") / "DESIGN.md").resolve():
+            continue
+        seen.add(key)
+        out.append(p)
+    return out
+
+
 def _check_pillar_freshness(label, files, errors):
     """Block stale pillar artifacts that agents reuse without re-running tools.
 
@@ -576,29 +629,33 @@ def check_gate0():
                     "(filler, not a point of view). Sharpen it before Phase 0."
                 )
 
-    # 1. design-system-output.md  (Pillar 2 — UI/UX Pro Max / search.py)
-    ds_files = list(Path(".").glob("design-system-output*.md"))
+    # 1. design-system artifacts (Pillar 2 — UI/UX Pro Max / search.py)
+    # Accept root design-system-output*.md OR design-system/**/MASTER.md from --persist
+    ds_files = _find_design_system_artifacts()
     if ds_files:
-        ok(f"design-system-output.md found ({ds_files[0].name})")
+        ok(f"design-system artifact found ({ds_files[0]})")
         _check_pillar_freshness("Pillar 2 (search.py / Pro Max)", ds_files, errors)
     else:
-        fail("design-system-output.md missing")
+        fail("design-system artifact missing (need design-system-output*.md or design-system/**/MASTER.md)")
         info("You MUST run (not invent) search.py from the skill scripts directory:")
-        info("  python3 <SKILL>/scripts/search.py \"<description>\" --design-system -p \"<Project>\" --save")
+        info("  python3 <SKILL>/scripts/search.py \"<description>\" --design-system -p \"<Project>\" --persist")
+        info("  (--save is a silent alias of --persist; prefer --persist)")
         errors.append("search.py not executed")
 
     # 2. getdesign reference (Pillar 1 — real brand anchor)
-    getdesign_files = list(Path(".").glob("getdesign-*.md")) + list(Path(".").glob("brand-*.md"))
+    # Accept getdesign-*.md / brand-*.md OR <brand>/DESIGN.md (npx getdesign layout)
+    getdesign_files = _find_getdesign_artifacts()
     if getdesign_files:
-        ok(f"getdesign.md reference found ({getdesign_files[0].name})")
+        ok(f"getdesign reference found ({getdesign_files[0]})")
         _check_pillar_freshness("Pillar 1 (getdesign)", getdesign_files, errors)
         _check_reference_diversity(getdesign_files)
     else:
-        fail("No getdesign.md reference file found")
+        fail("No getdesign reference found")
         info("You MUST run (not invent / not reuse a foreign project dump):")
-        info("  npx getdesign@latest add <brand>")
-        info("Brand examples: vercel / stripe / linear.app (SaaS) — but add at least one")
-        info("non-SaaS anchor: wired / ferrari / nike / nintendo-2001 (anti-monoculture)")
+        info("  npx --yes getdesign@latest add <brand>")
+        info("If the tool writes <brand>/DESIGN.md, keep it (gate accepts it) or copy to getdesign-<brand>.md")
+        info("Brand examples: vercel / stripe / linear.app (SaaS) — prefer ≥1 non-SaaS")
+        info("non-SaaS: wired / ferrari / nike / nintendo-2001 (anti-monoculture)")
         errors.append("getdesign.md not executed")
 
     # 3. DESIGN.md present

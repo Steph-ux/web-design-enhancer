@@ -75,6 +75,29 @@ def test_lock_board_vs_card_grid_blocks(tmp_path, monkeypatch):
     assert any("board promised" in e for e in errors)
 
 
+def test_find_design_system_accepts_master_path(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    master = tmp_path / "design-system" / "proj" / "MASTER.md"
+    master.parent.mkdir(parents=True)
+    master.write_text("# master\n", encoding="utf-8")
+    mod = _load()
+    found = mod._find_design_system_artifacts()
+    assert any(p.name == "MASTER.md" for p in found)
+
+
+def test_find_getdesign_accepts_brand_subdir(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    brand = tmp_path / "ferrari" / "DESIGN.md"
+    brand.parent.mkdir()
+    brand.write_text("colors:\n  primary: '#000'\n", encoding="utf-8")
+    # Project contract must NOT count
+    (tmp_path / "DESIGN.md").write_text("# project contract\n", encoding="utf-8")
+    mod = _load()
+    found = mod._find_getdesign_artifacts()
+    assert any(p.as_posix().endswith("ferrari/DESIGN.md") or p.name == "DESIGN.md" and p.parent.name == "ferrari" for p in found)
+    assert not any(p.resolve() == (tmp_path / "DESIGN.md").resolve() for p in found)
+
+
 def test_lock_board_with_board_row_passes(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"

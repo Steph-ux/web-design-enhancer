@@ -1,4 +1,4 @@
-# Rationalizations — skip resistance
+﻿# Rationalizations — skip resistance
 
 Load this file when tempted to skip a phase, gate, Eyes, or provenance rule under time pressure, user urgency, or “it looks fine.”
 
@@ -35,7 +35,7 @@ Load this file when tempted to skip a phase, gate, Eyes, or provenance rule unde
 | Brief later | Stop code; complete creative brief quality floor first |
 | getdesign already exists | Delete/overwrite via fresh `npx getdesign@latest add <brand>`; re-run gate 0 |
 | Invent Sources | Run pillars; only then fill §0 with real paths |
-| Skip Pro Max tool | Run `search.py --design-system --save`; document overrides |
+| Skip Pro Max tool | Run `search.py --design-system --persist`; document overrides |
 | Lock vs cards | Implement board rows/table or rewrite lock honestly |
 
 ---

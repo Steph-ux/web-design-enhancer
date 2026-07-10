@@ -1,4 +1,4 @@
-# Design: web-design-enhancer-pro — Option C + Eyes (Playwright MCP)
+﻿# Design: web-design-enhancer-pro — Option C + Eyes (Playwright MCP)
 
 **Date:** 2026-07-10  
 **Status:** Draft for user review  
@@ -142,7 +142,7 @@ Positive order (recipe-first):
               → check brief quality (gate 0 includes audit_brief floor)
 2. CRAFT AIM  Archetype + 2–3 signature gestures from beauty-gestures.md
               (state explicitly before code)
-3. ANCHORS    Pillar 2 search.py --design-system --save
+3. ANCHORS    Pillar 2 search.py --design-system --persist
               Pillar 1 npx getdesign@latest add <brand> (+ non-SaaS preferred)
 4. CONTRACT   Merge → DESIGN.md → check.py --gate 0 → --gate 1
 5. LOCK       structural-lock.md → check.py --gate 2

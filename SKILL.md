@@ -17,19 +17,21 @@ Enforces a design contract and blocks generic AI UI. **You do not invent a look 
 
 Agents **cannot invent** Phase 0. `check.py --gate 0` **blocks** if:
 
-1. You did **not** run Pillar 2: `search.py … --design-system … --save` → fresh `design-system-output*.md`
-2. You did **not** run Pillar 1: `npx getdesign@latest add <brand>` → fresh `getdesign-*.md` / `brand-*.md`
+1. You did **not** run Pillar 2: `search.py … --design-system … --persist` → fresh `design-system-output.md` and/or `design-system/**/MASTER.md`
+2. You did **not** run Pillar 1: `npx --yes getdesign@latest add <brand>` → fresh `getdesign-*.md` / `brand-*.md` **or** `<brand>/DESIGN.md`
 3. Artifacts are **older than the brief** or **>72h old** (stale reuse = fail)
 4. `DESIGN.md` §0 does not document the **real** commands
 
-**Forbidden:** copying an old `getdesign-*.md` from another project; writing DESIGN.md from memory; claiming “Bugatti” without a fresh run.
+**CLI truth:** flag is **`--persist`** (not a made-up `--save` — though `--save` is now a silent alias). Prefer `--persist --format markdown`.
+
+**Forbidden:** copying an old `getdesign-*.md` from another project; writing DESIGN.md from memory; claiming a brand without a fresh run.
 
 **Script root:** resolve the skill install path once, then always call scripts from there:
 
 ```text
 SKILL = ~/.claude/skills/web-design-enhancer-pro   # or this repo
-python3 $SKILL/scripts/search.py "…" --design-system -p "…" --save
-npx getdesign@latest add <brand>
+python3 $SKILL/scripts/search.py "…" --design-system -p "…" --persist --format markdown
+npx --yes getdesign@latest add <brand>
 python3 $SKILL/scripts/check.py --gate 0
 ```
 
@@ -78,8 +80,8 @@ Use **`$SKILL/scripts/…`** (skill install), not a random copy of the project.
 
 ```bash
 # Phase 0 — BOTH pillars (must run; must be fresh)
-python3 $SKILL/scripts/search.py "<product>" --design-system -p "<Project>" --save
-npx getdesign@latest add <brand>          # re-run even if an old getdesign-*.md exists
+python3 $SKILL/scripts/search.py "<product>" --design-system -p "<Project>" --persist --format markdown
+npx --yes getdesign@latest add <brand>    # may write <brand>/DESIGN.md — gate accepts it
 
 python3 $SKILL/scripts/check.py --gate 0  # fails if pillars stale vs CREATIVE-BRIEF
 python3 $SKILL/scripts/check.py --gate 1

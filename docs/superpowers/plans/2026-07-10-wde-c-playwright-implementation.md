@@ -1,4 +1,4 @@
-# web-design-enhancer-pro Option C + Eyes Implementation Plan
+﻿# web-design-enhancer-pro Option C + Eyes Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -135,7 +135,7 @@ Pick one mode from the user request. If unclear, use `greenfield`.
 ## Commands (canonical)
 
 ```bash
-python3 scripts/search.py "<product>" --design-system -p "<Project>" --save
+python3 scripts/search.py "<product>" --design-system -p "<Project>" --persist
 npx getdesign@latest add <brand>
 python3 scripts/check.py --gate 0
 python3 scripts/check.py --gate 1
@@ -224,7 +224,7 @@ Brief present, specific, one hero dimension, broken rule with because, dials set
 Do not invent DESIGN.md from priors. Archetype ≠ substitute for pillars.
 
 ## Steps
-1. Pillar 2: `python3 scripts/search.py "<product>" --design-system -p "<Project>" --save`
+1. Pillar 2: `python3 scripts/search.py "<product>" --design-system -p "<Project>" --persist`
    → `design-system-output*.md`
 2. Pillar 1: `npx getdesign@latest add <brand>` → `getdesign-*.md` / `brand-*.md`
    Prefer ≥1 non-SaaS anchor when possible (`data/getdesign-references.csv`).

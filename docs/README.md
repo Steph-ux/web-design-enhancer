@@ -1,4 +1,4 @@
-# Documentation — Web Design Enhancer Pro
+﻿# Documentation — Web Design Enhancer Pro
 
 Technical reference for the skill. The [README](../README.md) covers the quick pitch and examples (NOIRÉ, CryptoVerse).
 
@@ -19,7 +19,7 @@ This page is a short operator cheat-sheet. Prefer SKILL + workflows when the map
 # 1. Intent + anchors (mandatory)
 # Fill CREATIVE-BRIEF.md from templates/creative-brief-template.md
 npx getdesign@latest add stripe
-python3 scripts/search.py "saas analytics dashboard" --design-system -p "MyProject" --save
+python3 scripts/search.py "saas analytics dashboard" --design-system -p "MyProject" --persist
 
 # 2. Contract
 cp templates/design-md-template.md DESIGN.md
