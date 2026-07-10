@@ -165,3 +165,7 @@ Desktop.ini
 examples/**/.wde/
 benchmark-results/
 
+
+# accidental Eyes dumps
+board-*.png
+
