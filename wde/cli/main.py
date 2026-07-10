@@ -142,6 +142,66 @@ def cmd_version(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_run(args: argparse.Namespace) -> int:
+    """Run a check profile (static / mechanical / browser / deliver)."""
+    from wde.core.runner import run_profile
+    from wde.reporting.console import print_results
+    from wde.reporting.json_report import build_report, write_report
+
+    ctx = ProjectContext(_root(args))
+    if not ctx.exists():
+        print("ERROR: not a WDE project — run: wde init", file=sys.stderr)
+        return 1
+    profile = args.profile
+    results = run_profile(ctx, profile, url=args.url)
+    state = ctx.load_state()
+    report = build_report(results=results, phase=state.get("phase", ""), root=str(ctx.root))
+    report_path = write_report(ctx.wde / "reports" / f"run-{profile}.json", report)
+
+    if args.json:
+        print(json.dumps(report, indent=2, ensure_ascii=False))
+    else:
+        print_results(results)
+        print(f"report: {report_path}")
+
+    blocking = any(r.blocks_delivery for r in results)
+    return 1 if blocking else 0
+
+
+def cmd_deliver_check(args: argparse.Namespace) -> int:
+    """Re-hash sources, re-run mechanical checks, reject stale/forged evidence."""
+    from wde.core.runner import deliver_check
+    from wde.reporting.console import print_results
+    from wde.reporting.json_report import build_report, write_report
+
+    ctx = ProjectContext(_root(args))
+    if not ctx.exists():
+        print("ERROR: not a WDE project — run: wde init", file=sys.stderr)
+        return 1
+
+    ok, blockers, results = deliver_check(ctx, url=args.url)
+    state = ctx.load_state()
+    report = build_report(results=results, phase=state.get("phase", ""), root=str(ctx.root))
+    report["deliver_ok"] = ok
+    report["blockers"] = blockers
+    report_path = write_report(ctx.wde / "reports" / "deliver-check.json", report)
+
+    if args.json:
+        print(json.dumps(report, indent=2, ensure_ascii=False))
+    else:
+        print_results(results)
+        if ok:
+            print("DELIVER-CHECK: mechanical evidence OK (visual/independent still required for READY_TO_DELIVER)")
+            print(f"phase: {state.get('phase')}")
+        else:
+            print("DELIVER-CHECK: BLOCKED")
+            for b in blockers:
+                print(f"  - {b}")
+        print(f"report: {report_path}")
+
+    return 0 if ok else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="wde",
@@ -184,6 +244,30 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--evidence-id", default="")
     s.add_argument("--force", action="store_true", help="Unused guard — illegal edges still fail")
     s.set_defaults(func=cmd_transition)
+
+    s = sub.add_parser(
+        "run",
+        parents=[common],
+        help="Run a check profile: static | mechanical | browser | deliver",
+    )
+    s.add_argument(
+        "profile",
+        nargs="?",
+        default="static",
+        choices=["static", "mechanical", "browser", "deliver"],
+    )
+    s.add_argument("--url", default=None, help="Override project.local_url (browser checks)")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_run)
+
+    s = sub.add_parser(
+        "deliver-check",
+        parents=[common],
+        help="Re-run mechanical checks; block on stale/forged evidence",
+    )
+    s.add_argument("--url", default=None)
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_deliver_check)
 
     return p
 
