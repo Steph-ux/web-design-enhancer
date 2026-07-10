@@ -1,5 +1,33 @@
 # Changelog
 
+## V3.0.0a1 — evidence-driven orchestrator (alpha)
+
+**Principle:** the model proposes and implements; the orchestrator authorizes, verifies, and blocks.
+
+### Added — `wde` package + CLI
+- Stateful control plane under `.wde/` (`state.json`, `project.json`, evidence envelopes).
+- Evidence allowlist: only `wde-core` may write `status=passed`.
+- Hash graph + automatic invalidation when sources change.
+- CLI: `init`, `status`, `next`, `doctor`, `transition`, `run`, `validate`,
+  `deliver-check`, `migrate-v2`, `report`, `benchmark`, `review`.
+- Check registry + V2 bridges (slop, a11y, spacing, uniqueness, beauty, gestures,
+  layout, design.diff, wow, visual.audit/aesthetic).
+- Domain modules: forms, states, i18n, performance, maintainability (`domains.bundle`).
+- Independence modes for aesthetic review (self cannot authorize READY).
+- Benchmark: smoke + 12-task corpus (`benchmark --corpus`); never auto-delivers.
+- Adapters: `adapters/generic`, `claude-code`, `codex`.
+- Thin skill adapters: root `SKILL.md` + `skill/SKILL.md`.
+- Fixture: `examples/v3-fixture`; docs: `docs/V3.md`.
+
+### Preserved
+- V2 scripts under `scripts/` remain the validation arsenal (invoked via trusted checks).
+- Tag freeze of the V2 line: **`v2.2.0`**.
+
+### Status
+- **512** unit/integration tests green on `main`.
+- Multi-model medians (×3 runs) remain **lab / external**, not a ship blocker.
+- Schemas locked at `schema_version: "3.0"`.
+
 ## V2.2 — orchestrator packaging + mandatory Eyes (Playwright MCP)
 
 ### Changed

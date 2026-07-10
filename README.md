@@ -4,6 +4,36 @@
 
 ---
 
+## V3 orchestrator (current)
+
+> **The model proposes and implements. The orchestrator authorizes, verifies, and blocks.**
+
+V3 wraps the V2 validation arsenal in a **stateful, evidence-driven CLI** so agents cannot claim “gate passed” without fresh proof. Version: **`3.0.0a1`**. Full notes: [`docs/V3.md`](docs/V3.md) · plan: [`docs/superpowers/specs/2026-07-10-wde-v3-plan.md`](docs/superpowers/specs/2026-07-10-wde-v3-plan.md).
+
+```bash
+pip install -e .          # from this repo
+python -m wde.cli.main init --root <project>
+python -m wde.cli.main next --root <project>
+python -m wde.cli.main validate intent|experience|design|lock --root <project>
+python -m wde.cli.main run static --root <project>
+python -m wde.cli.main deliver-check --root <project>
+python -m wde.cli.main review --emit-package --url http://localhost:5173 --root <project>
+python -m wde.cli.main report --root <project>
+python -m wde.cli.main benchmark --corpus   # never auto-delivers
+```
+
+| Piece | Role |
+|-------|------|
+| `.wde/state.json` | Phase machine (owned by **wde-core** only) |
+| `.wde/evidence/*` | Hashed envelopes — models must not hand-write `passed` |
+| `wde next` | Only authorized next command |
+| Adapters | `adapters/generic`, `claude-code`, `codex` |
+| Skill entry | Thin [`SKILL.md`](SKILL.md) → drive the CLI, do not invent gates |
+
+V2 `scripts/*` and gate workflows below remain the **check implementations**. Prefer `wde run` / `wde deliver-check` so invalidation and evidence stay consistent.
+
+---
+
 ## What it does
 
 By default, every AI generates the same website: dark hero + blue→purple gradient + 3-column card grid + testimonials + blue CTA. This skill makes that **impossible to deliver**.
