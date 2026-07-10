@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wde"
+version = "3.0.0a1"
+description = "Web Design Enhancer V3 — evidence-driven frontend quality orchestrator for AI agents"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "WDE contributors" }]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+wde = "wde.cli.main:main"
+
+[tool.setuptools.packages.find]
+include = ["wde*"]
+
+[tool.setuptools.package-data]
+wde = ["schemas/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

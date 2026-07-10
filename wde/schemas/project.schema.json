@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wde.dev/schemas/project.schema.json",
+  "title": "WDE project configuration",
+  "type": "object",
+  "required": ["schema_version", "project_id", "product_type", "source_paths"],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "type": "string", "const": "3.0" },
+    "project_id": { "type": "string", "minLength": 1 },
+    "product_type": {
+      "type": "string",
+      "enum": ["marketing", "product", "storefront", "dashboard", "other"]
+    },
+    "framework": { "type": "string" },
+    "dev_command": { "type": "string" },
+    "build_command": { "type": "string" },
+    "test_command": { "type": "string" },
+    "local_url": { "type": "string" },
+    "source_paths": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "critical_pages": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "policy_profile": { "type": "string", "default": "web" },
+    "adapter": { "type": "string", "default": "generic" }
+  }
+}

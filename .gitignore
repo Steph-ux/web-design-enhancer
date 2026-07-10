@@ -159,3 +159,9 @@ Desktop.ini
 
 # Playwright MCP session logs (ephemeral debug output)
 .playwright-mcp/
+
+# WDE V3 control plane (generated per project)
+.wde/
+examples/**/.wde/
+benchmark-results/
+
