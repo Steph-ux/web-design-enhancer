@@ -17,6 +17,7 @@ Persistence (Master + Overrides pattern):
 import argparse
 import sys
 import io
+from pathlib import Path
 from core import CSV_CONFIG, AVAILABLE_STACKS, MAX_RESULTS, search, search_stack
 from design_system import generate_design_system, persist_design_system
 
@@ -65,7 +66,11 @@ if __name__ == "__main__":
     parser.add_argument("--project-name", "-p", type=str, default=None, help="Project name for design system output")
     parser.add_argument("--format", "-f", choices=["ascii", "markdown"], default="ascii", help="Output format for design system")
     # Persistence (Master + Overrides pattern)
-    parser.add_argument("--persist", action="store_true", help="Save design system to design-system/MASTER.md (creates hierarchical structure)")
+    parser.add_argument("--persist", action="store_true",
+                        help="Save design system to design-system/<project>/MASTER.md (+ root design-system-output.md for gate 0)")
+    # Alias kept so SKILL/docs that historically said --save still work
+    parser.add_argument("--save", action="store_true", dest="persist",
+                        help=argparse.SUPPRESS)
     parser.add_argument("--page", type=str, default=None, help="Create page-specific override file in design-system/pages/")
     parser.add_argument("--output-dir", "-o", type=str, default=None, help="Output directory for persisted files (default: current directory)")
 
@@ -86,9 +91,17 @@ if __name__ == "__main__":
         # Print persistence confirmation
         if args.persist:
             project_slug = args.project_name.lower().replace(' ', '-') if args.project_name else "default"
+            out_root = Path(args.output_dir) if args.output_dir else Path(".")
+            # Gate 0 looks for design-system-output*.md at project root — always write it.
+            gate_copy = out_root / "design-system-output.md"
+            try:
+                gate_copy.write_text(result if isinstance(result, str) else str(result), encoding="utf-8")
+            except OSError as e:
+                print(f"Warning: could not write {gate_copy}: {e}", file=sys.stderr)
             print("\n" + "=" * 60)
             print(f"✅ Design system persisted to design-system/{project_slug}/")
             print(f"   📄 design-system/{project_slug}/MASTER.md (Global Source of Truth)")
+            print(f"   📄 design-system-output.md (gate 0 artifact — do not invent this by hand)")
             if args.page:
                 page_filename = args.page.lower().replace(' ', '-')
                 print(f"   📄 design-system/{project_slug}/pages/{page_filename}.md (Page Overrides)")
