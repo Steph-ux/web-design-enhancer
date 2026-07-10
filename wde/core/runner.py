@@ -150,8 +150,39 @@ def deliver_check(ctx: ProjectContext, *, url: str | None = None) -> tuple[bool,
             if not just_passed:
                 blockers.append(f"missing required fresh check: {r}")
 
-    ok = len(blockers) == 0
+    # Drop any valid_checks whose on-disk evidence no longer matches current SOURCE
     state = ctx.load_state()
+    current_src = (state.get("hashes") or {}).get("SOURCE") or ctx.compute_hashes().get("SOURCE", "")
+    state["hashes"] = {**(state.get("hashes") or {}), **ctx.compute_hashes()}
+    current_src = state["hashes"].get("SOURCE", current_src)
+    cleaned: dict[str, str] = {}
+    for check_id, rel in list((state.get("valid_checks") or {}).items()):
+        path = ctx.root / rel
+        if not path.is_file():
+            blockers.append(f"{check_id}: evidence file missing after run ({rel})")
+            continue
+        try:
+            import json as _json
+
+            data = _json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            blockers.append(f"{check_id}: evidence unreadable after run")
+            continue
+        if data.get("status") == "passed" and data.get("source_hash") != current_src:
+            blockers.append(f"{check_id}: stale evidence after source change — re-run checks")
+            continue
+        if data.get("status") == "passed" and data.get("executor") not in {
+            "wde-core",
+            "wde-check",
+            "wde-browser",
+            "wde-v2-bridge",
+        }:
+            blockers.append(f"{check_id}: executor not trusted ({data.get('executor')})")
+            continue
+        cleaned[check_id] = rel
+    state["valid_checks"] = cleaned
+
+    ok = len(blockers) == 0
 
     # Advance mechanical → visual only — never READY_TO_DELIVER here
     if ok:

@@ -38,6 +38,7 @@ class CheckRegistry:
                 "style.uniqueness",
                 "beauty.score",
                 "gestures.archetype",
+                "design.diff",
             ],
             "mechanical": [
                 "slop.static",
@@ -46,14 +47,17 @@ class CheckRegistry:
                 "style.uniqueness",
                 "beauty.score",
                 "gestures.archetype",
+                "design.diff",
             ],
             "browser": ["layout.browser", "visual.audit"],
             "visual": ["visual.audit", "layout.browser", "visual.aesthetic"],
+            "wow": ["wow.excess", "gestures.archetype", "beauty.score"],
             "deliver": [
                 "slop.static",
                 "a11y.static",
                 "spacing.grid",
                 "style.uniqueness",
+                "design.diff",
             ],
             "full": [
                 "slop.static",
@@ -62,6 +66,8 @@ class CheckRegistry:
                 "style.uniqueness",
                 "beauty.score",
                 "gestures.archetype",
+                "design.diff",
+                "wow.excess",
                 "layout.browser",
                 "visual.audit",
                 "visual.aesthetic",
@@ -86,10 +92,12 @@ def default_registry() -> CheckRegistry:
     from wde.checks.browser.visual_audit import VisualAuditBrowserCheck
     from wde.checks.static.accessibility import AccessibilityStaticCheck
     from wde.checks.static.beauty import BeautyStaticCheck
+    from wde.checks.static.design_diff import DesignDiffStaticCheck
     from wde.checks.static.gestures import GesturesStaticCheck
     from wde.checks.static.slop import SlopStaticCheck
     from wde.checks.static.spacing import SpacingStaticCheck
     from wde.checks.static.uniqueness import UniquenessStaticCheck
+    from wde.checks.static.wow import WowStaticCheck
     from wde.checks.visual.aesthetic import AestheticVerdictCheck
 
     reg = CheckRegistry()
@@ -100,6 +108,8 @@ def default_registry() -> CheckRegistry:
         UniquenessStaticCheck(),
         BeautyStaticCheck(),
         GesturesStaticCheck(),
+        DesignDiffStaticCheck(),
+        WowStaticCheck(),
         LayoutBrowserCheck(),
         VisualAuditBrowserCheck(),
         AestheticVerdictCheck(),

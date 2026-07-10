@@ -211,6 +211,58 @@ def cmd_validate(args: argparse.Namespace) -> int:
     return 0 if report.ok else 1
 
 
+def cmd_report(args: argparse.Namespace) -> int:
+    from wde.reporting.consolidate import write_consolidated
+
+    ctx = ProjectContext(_root(args))
+    if not ctx.exists():
+        print("ERROR: not a WDE project — run: wde init", file=sys.stderr)
+        return 1
+    state = ctx.refresh_invalidation()
+    ctx.save_state(state)
+    paths = write_consolidated(ctx.root, state, ctx.load_project())
+    report = paths["report"]
+    if args.json:
+        print(json.dumps(report, indent=2, ensure_ascii=False))
+    else:
+        print(f"consolidated: {paths['json']}")
+        print(f"human:        {paths['md']}")
+        print(f"phase:        {report.get('phase')}")
+        print(f"delivery_safe:{report.get('integrity', {}).get('delivery_safe')}")
+        if report.get("integrity", {}).get("forged_ready_without_checks"):
+            print("WARN: READY_TO_DELIVER without valid_checks")
+    return 0
+
+
+def cmd_benchmark(args: argparse.Namespace) -> int:
+    from wde.benchmark.runner import run_benchmark
+
+    tasks = None
+    if args.task:
+        tasks = [args.task]
+    keep = Path(args.keep_dir) if args.keep_dir else None
+    report = run_benchmark(task_ids=tasks, keep_dir=keep)
+    # Persist under cwd .wde if present, else scratch-like cwd
+    out_root = _root(args)
+    out_dir = out_root / ".wde" / "reports"
+    if not (out_root / ".wde").is_dir():
+        out_dir = out_root / "benchmark-results"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / "benchmark-smoke.json"
+    path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    if args.json:
+        print(json.dumps(report, indent=2, ensure_ascii=False))
+    else:
+        ps = report.get("procedural_score") or {}
+        print(f"benchmark smoke: {ps.get('passed_flags')}/{ps.get('total_flags')} procedural flags")
+        print(f"rate: {ps.get('rate')}")
+        print(f"authorizes_delivery: {report.get('authorizes_delivery')}")
+        for t in report.get("tasks") or []:
+            print(f"  - {t.get('task_id')}: phase={t.get('phase')}")
+        print(f"report: {path}")
+    return 0
+
+
 def cmd_review(args: argparse.Namespace) -> int:
     """Emit independent judge package; optionally process visual + aesthetic evidence."""
     from wde.core.review import emit_review_package, process_review
@@ -370,7 +422,7 @@ def build_parser() -> argparse.ArgumentParser:
         "profile",
         nargs="?",
         default="static",
-        choices=["static", "mechanical", "browser", "visual", "deliver", "full"],
+        choices=["static", "mechanical", "browser", "visual", "wow", "deliver", "full"],
     )
     s.add_argument("--url", default=None, help="Override project.local_url (browser checks)")
     s.add_argument("--json", action="store_true")
@@ -405,6 +457,24 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--force", action="store_true")
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_migrate_v2)
+
+    s = sub.add_parser(
+        "report",
+        parents=[common],
+        help="Consolidate evidence + reports under .wde/reports/consolidated.*",
+    )
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_report)
+
+    s = sub.add_parser(
+        "benchmark",
+        parents=[common],
+        help="Run smoke benchmark corpus (procedural vs quality; never auto-delivers)",
+    )
+    s.add_argument("--task", default=None, help="Single task id (default: all smoke tasks)")
+    s.add_argument("--keep-dir", default=None, help="Directory to keep task workspaces")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_benchmark)
 
     s = sub.add_parser(
         "review",

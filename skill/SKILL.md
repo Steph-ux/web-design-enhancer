@@ -48,6 +48,8 @@ python -m wde.cli.main review --emit-package --url <url> --root <project>
 # Independent judge writes audit-results/aesthetic-verdict.json
 # (reviewer: independent-clone|independent|human — never self for delivery)
 python -m wde.cli.main review --url <url> --root <project>
+python -m wde.cli.main report --root <project>
+python -m wde.cli.main benchmark --root <project>
 ```
 
 ## Migrating V2 projects
