@@ -59,6 +59,7 @@ class CheckRegistry:
                 "style.uniqueness",
                 "design.diff",
             ],
+            "domains": ["domains.bundle"],
             "full": [
                 "slop.static",
                 "a11y.static",
@@ -68,6 +69,7 @@ class CheckRegistry:
                 "gestures.archetype",
                 "design.diff",
                 "wow.excess",
+                "domains.bundle",
                 "layout.browser",
                 "visual.audit",
                 "visual.aesthetic",
@@ -93,6 +95,7 @@ def default_registry() -> CheckRegistry:
     from wde.checks.static.accessibility import AccessibilityStaticCheck
     from wde.checks.static.beauty import BeautyStaticCheck
     from wde.checks.static.design_diff import DesignDiffStaticCheck
+    from wde.checks.static.domains_bundle import DomainsBundleCheck
     from wde.checks.static.gestures import GesturesStaticCheck
     from wde.checks.static.slop import SlopStaticCheck
     from wde.checks.static.spacing import SpacingStaticCheck
@@ -110,6 +113,7 @@ def default_registry() -> CheckRegistry:
         GesturesStaticCheck(),
         DesignDiffStaticCheck(),
         WowStaticCheck(),
+        DomainsBundleCheck(),
         LayoutBrowserCheck(),
         VisualAuditBrowserCheck(),
         AestheticVerdictCheck(),

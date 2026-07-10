@@ -241,7 +241,7 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
     if args.task:
         tasks = [args.task]
     keep = Path(args.keep_dir) if args.keep_dir else None
-    report = run_benchmark(task_ids=tasks, keep_dir=keep)
+    report = run_benchmark(task_ids=tasks, keep_dir=keep, corpus=bool(args.corpus))
     # Persist under cwd .wde if present, else scratch-like cwd
     out_root = _root(args)
     out_dir = out_root / ".wde" / "reports"
@@ -469,9 +469,10 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser(
         "benchmark",
         parents=[common],
-        help="Run smoke benchmark corpus (procedural vs quality; never auto-delivers)",
+        help="Run benchmark (smoke by default; --corpus for 12 tasks; never auto-delivers)",
     )
-    s.add_argument("--task", default=None, help="Single task id (default: all smoke tasks)")
+    s.add_argument("--task", default=None, help="Single task id")
+    s.add_argument("--corpus", action="store_true", help="Run full 12-task catalog")
     s.add_argument("--keep-dir", default=None, help="Directory to keep task workspaces")
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_benchmark)

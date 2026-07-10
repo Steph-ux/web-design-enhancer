@@ -223,30 +223,63 @@ def run_benchmark(
     *,
     task_ids: list[str] | None = None,
     keep_dir: Path | None = None,
+    corpus: bool = False,
 ) -> dict[str, Any]:
-    ids = task_ids or list(TASKS.keys())
+    """Run smoke tasks by default; corpus=True runs full 12-task catalog."""
+    from wde.benchmark.corpus import load_catalog, run_corpus_task
+
     results: list[TaskResult] = []
     work_root = keep_dir or Path(tempfile.mkdtemp(prefix="wde-bench-"))
     work_root.mkdir(parents=True, exist_ok=True)
-    for tid in ids:
-        fn = TASKS.get(tid)
-        if not fn:
-            results.append(TaskResult(task_id=tid, notes=[f"unknown task {tid}"]))
-            continue
-        task_dir = work_root / tid.replace(".", "_")
-        if task_dir.exists():
-            shutil.rmtree(task_dir)
-        task_dir.mkdir(parents=True)
-        results.append(fn(task_dir))
+
+    if corpus:
+        catalog = load_catalog()
+        tasks_meta = catalog.get("tasks") or []
+        if task_ids:
+            tasks_meta = [t for t in tasks_meta if t.get("id") in task_ids]
+        for meta in tasks_meta:
+            tid = meta.get("id", "unknown")
+            task_dir = work_root / tid.replace(".", "_")
+            if task_dir.exists():
+                shutil.rmtree(task_dir)
+            task_dir.mkdir(parents=True)
+            results.append(run_corpus_task(meta, task_dir))
+        kind = "benchmark_corpus"
+        note = "12-task corpus (lab/static procedural); multi-model medians still external"
+    else:
+        ids = task_ids or list(TASKS.keys())
+        for tid in ids:
+            fn = TASKS.get(tid)
+            if not fn:
+                # allow corpus ids without --corpus for convenience
+                from wde.benchmark.corpus import load_catalog, run_corpus_task
+
+                meta = next((t for t in (load_catalog().get("tasks") or []) if t.get("id") == tid), None)
+                task_dir = work_root / tid.replace(".", "_")
+                if task_dir.exists():
+                    shutil.rmtree(task_dir)
+                task_dir.mkdir(parents=True)
+                if meta:
+                    results.append(run_corpus_task(meta, task_dir))
+                else:
+                    results.append(TaskResult(task_id=tid, notes=[f"unknown task {tid}"]))
+                continue
+            task_dir = work_root / tid.replace(".", "_")
+            if task_dir.exists():
+                shutil.rmtree(task_dir)
+            task_dir.mkdir(parents=True)
+            results.append(fn(task_dir))
+        kind = "benchmark_smoke"
+        note = "Smoke tasks only; use --corpus for full 12-task catalog"
 
     report = {
         "schema_version": "3.0",
-        "kind": "benchmark_smoke",
+        "kind": kind,
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "tasks": [r.to_dict() for r in results],
         "procedural_score": score_procedural(results),
         "quality_summary": {
-            "note": "Quality is lab/static only in smoke tasks; no multi-model median",
+            "note": note,
             "per_task": {r.task_id: r.quality for r in results},
         },
         "authorizes_delivery": False,
