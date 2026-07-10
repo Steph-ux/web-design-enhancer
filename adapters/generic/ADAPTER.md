@@ -16,10 +16,11 @@ Works with any agent that can read files, run shell commands, and edit the proje
 wde init
 wde status --json
 wde next
-# agent fills CREATIVE-BRIEF.md
+# Prefer discovery for vague briefs (writes contracts + research receipts):
+wde discover --request "modern premium site for an independent hotel agency"
+# or fill CREATIVE-BRIEF.md by hand, then:
 wde validate intent
-# pillars: search.py --persist + npx getdesign  → then:
-wde validate research
+wde validate research   # accepts discovery receipts OR classic pillars
 wde validate experience
 wde validate design
 wde validate lock

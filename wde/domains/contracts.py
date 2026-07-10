@@ -154,7 +154,7 @@ def validate_intent(root: Path) -> ValidationReport:
 
 
 def validate_research(root: Path) -> ValidationReport:
-    """Prove Phase 0 pillars left real artifacts (not a free-hand phase jump)."""
+    """Prove Phase 0 pillars left real artifacts OR discovery receipts with digests."""
     issues: list[ValidationIssue] = []
     pro_max_hits = [
         root / "design-system-output.md",
@@ -166,7 +166,6 @@ def validate_research(root: Path) -> ValidationReport:
         *root.glob("**/getdesign-*.md"),
         root / "bugatti" / "DESIGN.md",
     ]
-    # brand folders from getdesign often land as <brand>/DESIGN.md
     brand_designs = [
         p
         for p in root.glob("*/DESIGN.md")
@@ -183,40 +182,60 @@ def validate_research(root: Path) -> ValidationReport:
             or "0a." in text
             or "getdesign" in text.lower()
             or "design-system" in text.lower()
+            or "Creative Discovery" in text
+            or "wde/research" in text
+            or ".wde/research" in text
         )
+
+    # Discovery receipts path (Creative Discovery orchestrator)
+    from wde.discovery.receipts import discovery_receipts_satisfy_research
+
+    discovery_ok, discovery_problems = discovery_receipts_satisfy_research(root)
+
+    if discovery_ok:
+        # Receipts stand in for classic pillar files when digests + success exist
+        blocking = [i for i in issues if i.severity == "blocking"]
+        return ValidationReport("research", len(blocking) == 0, issues)
 
     if not has_pro and not phase0_ok:
         issues.append(
             ValidationIssue(
                 "research_promax",
                 "Missing Pro Max / design-system artifact (design-system-output.md or design-system/**/MASTER.md)",
-                remediation="python scripts/search.py \"…\" --design-system -p <name> --persist",
+                remediation="wde discover --request \"…\"  OR  python scripts/search.py \"…\" --design-system -p <name> --persist",
             )
         )
-    if not has_gd and not phase0_ok:
+    if not has_gd and not phase0_ok and not discovery_ok:
         issues.append(
             ValidationIssue(
                 "research_getdesign",
-                "Missing getdesign visual reference artifact",
-                remediation="npx getdesign@latest add <brand>  (keep path documented in DESIGN.md §0)",
+                "Missing getdesign visual reference artifact (or discovery receipts)",
+                remediation="wde discover --request \"…\"  OR  npx getdesign@latest add <brand>",
             )
         )
-    if not has_pro and not has_gd and not phase0_ok:
+    if not has_pro and not has_gd and not phase0_ok and not discovery_ok:
         issues.append(
             ValidationIssue(
                 "research_empty",
-                "No research pillars detected — cannot validate research",
-                remediation="Run search.py --persist and getdesign, document in DESIGN.md Phase 0",
+                "No research pillars or discovery receipts — cannot validate research",
+                remediation="wde discover --request \"…\" then re-run validate research",
             )
         )
-    # Prefer at least one hard artifact even if DESIGN.md mentions sources
-    if phase0_ok and not has_pro and not has_gd:
+        if discovery_problems:
+            issues.append(
+                ValidationIssue(
+                    "research_receipts",
+                    "Discovery receipts incomplete: " + "; ".join(discovery_problems),
+                    remediation="Re-run wde discover so .wde/research/ has ≥2 valid digests",
+                )
+            )
+    if phase0_ok and not has_pro and not has_gd and not discovery_ok:
         issues.append(
             ValidationIssue(
                 "research_docs_only",
-                "DESIGN.md mentions sources but no on-disk pillar artifacts found",
+                "DESIGN.md mentions sources but no on-disk pillar artifacts or receipts found",
                 severity="blocking",
-                remediation="Persist design-system-output.md and/or getdesign folder",
+                remediation="wde discover or persist design-system-output.md / getdesign",
             )
         )
 

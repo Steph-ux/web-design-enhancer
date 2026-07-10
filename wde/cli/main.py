@@ -141,6 +141,45 @@ def cmd_run(args: argparse.Namespace) -> int:
     return 1 if blocking else 0
 
 
+def cmd_discover(args: argparse.Namespace) -> int:
+    """Creative Discovery: interpret → research receipts → territories → contracts."""
+    from wde.discovery.orchestrator import run_discovery
+
+    root = _root(args)
+    request = (args.request or "").strip()
+    if not request and args.request_file:
+        request = Path(args.request_file).read_text(encoding="utf-8", errors="replace").strip()
+    if not request:
+        print(
+            "ERROR: provide --request \"…\" or --request-file path",
+            file=sys.stderr,
+        )
+        return 2
+
+    result = run_discovery(
+        root,
+        request,
+        force_init=bool(args.force_init),
+        try_getdesign=not bool(args.skip_getdesign),
+    )
+    if args.json:
+        print(json.dumps(result.to_dict(), indent=2, ensure_ascii=False))
+    else:
+        status = "OK" if result.ok else "FAIL"
+        print(f"discover: {status}")
+        print(f"artifacts: {result.artifact_dir}")
+        print(f"receipts:  {len(result.receipt_paths)}")
+        print(f"territories: {len(result.territories)}")
+        if result.selection:
+            print(f"winner: {result.selection.get('winner_name')} ({result.selection.get('winner_id')})")
+        for name in result.contracts:
+            print(f"  wrote {name}")
+        for e in result.errors:
+            print(f"  error: {e}", file=sys.stderr)
+        print("next: wde validate intent  (then wde validate research)")
+    return 0 if result.ok else 1
+
+
 def cmd_validate(args: argparse.Namespace) -> int:
     from wde.domains.contracts import (
         apply_validation_transition,
@@ -365,6 +404,26 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("init", parents=[common], help="Initialize .wde control plane")
     s.add_argument("--force", action="store_true")
     s.set_defaults(func=cmd_init)
+
+    s = sub.add_parser(
+        "discover",
+        parents=[common],
+        help="Creative Discovery: vague request → research receipts → 3 territories → contracts",
+    )
+    s.add_argument("--request", default="", help="Vague product/site request text")
+    s.add_argument("--request-file", default=None, help="Read request text from file")
+    s.add_argument(
+        "--force-init",
+        action="store_true",
+        help="Force re-init .wde if needed",
+    )
+    s.add_argument(
+        "--skip-getdesign",
+        action="store_true",
+        help="Do not call npx getdesign (offline CI)",
+    )
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_discover)
 
     s = sub.add_parser(
         "status",

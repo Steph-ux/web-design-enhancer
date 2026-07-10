@@ -30,11 +30,14 @@ There is no need for `python -m wde.cli.main`.
 
 ```bash
 wde init --root <project>
+# Creative Discovery from a vague request (receipts + 3 territories + contracts)
+wde discover --root <project> --request "modern premium site for an agency"
 wde status --json --root <project>
 wde next --root <project>
 
 # contracts (follow next_action only)
 wde validate intent --root <project>
+wde validate research --root <project>
 wde validate experience --root <project>
 wde validate design --root <project>
 wde validate lock --root <project>

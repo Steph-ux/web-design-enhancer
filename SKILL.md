@@ -18,6 +18,8 @@ Prefer the short CLI (`wde` after `pip install -e .`, else `python -m wde`):
 
 ```bash
 wde init --root <project>
+# Vague request → Creative Discovery (receipts + 3 territories + contracts)
+wde discover --root <project> --request "modern premium site for an agency"
 wde status --json --root <project>
 wde next --root <project>
 ```

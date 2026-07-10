@@ -12,7 +12,8 @@ def test_initial_state_is_intent_required():
     s = initial_state()
     assert s["phase"] == "INTENT_REQUIRED"
     assert s["schema_version"] == "3.0"
-    assert s["next_action"]["id"] == "write_brief"
+    assert s["next_action"]["id"] == "discover_or_brief"
+    assert s["next_action"]["command"] == "wde discover"
 
 
 def test_illegal_transition_raises():

@@ -102,6 +102,7 @@ PUBLIC_NEXT_COMMANDS = frozenset(
         "wde report",
         "wde migrate-v2",
         "wde benchmark",
+        "wde discover",
     }
 )
 
@@ -116,21 +117,21 @@ def next_action_for(phase: str) -> NextAction:
             "wde-core",
         ),
         "INTENT_REQUIRED": NextAction(
-            "write_brief",
-            "Fill CREATIVE-BRIEF.md then validate intent",
-            "wde validate intent",
+            "discover_or_brief",
+            "Run creative discovery from a vague request (or fill brief) then validate intent",
+            "wde discover",
             "agent",
         ),
         "INTENT_VALIDATED": NextAction(
             "research",
-            "Run design research pillars then validate research",
+            "Validate research (discovery receipts or pillars)",
             "wde validate research",
             "agent",
         ),
         "RESEARCH_REQUIRED": NextAction(
             "research_run",
-            "Prove pillars (search.py --persist + getdesign) then validate research",
-            "wde validate research",
+            "Run wde discover (or pillars) then validate research",
+            "wde discover",
             "agent",
         ),
         "RESEARCH_VALIDATED": NextAction(
