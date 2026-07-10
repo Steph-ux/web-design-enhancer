@@ -49,7 +49,43 @@ def test_aesthetic_rejects_self_reviewer(tmp_path: Path):
     assert any(f.rule_id == "PROVENANCE" for f in result.findings)
 
 
-def test_aesthetic_accepts_independent_clone(tmp_path: Path):
+def test_aesthetic_accepts_verified_human_full_rubric(tmp_path: Path):
+    """Delivery-grade: reviewer=human|independent, score>=80, full dimensions."""
+    init_project(tmp_path)
+    audit = tmp_path / "audit-results"
+    audit.mkdir()
+    dims = {
+        d: {"score": 82, "note": f"evidence for {d}"}
+        for d in [
+            "first_impression",
+            "hierarchy",
+            "spacing_rhythm",
+            "colour_restraint",
+            "typography",
+            "component_polish",
+            "mobile",
+        ]
+    }
+    (audit / "aesthetic-verdict.json").write_text(
+        json.dumps(
+            {
+                "reviewer": "human",
+                "overall_score": 88,
+                "reads_as": "human",
+                "memorable_idea": "Departure-board catalogue columns with gold rule",
+                "dimensions": dims,
+            }
+        ),
+        encoding="utf-8",
+    )
+    result = AestheticVerdictCheck().run({"root": tmp_path})
+    assert result.status == "passed", [f.rule_id for f in result.findings]
+    assert result.details.get("independence") == "strong"
+    assert result.details.get("independence_class") == "verified"
+
+
+def test_aesthetic_rejects_thin_independent_clone(tmp_path: Path):
+    """Bare independent-clone + incomplete dims must fail (declared-only / incomplete)."""
     init_project(tmp_path)
     audit = tmp_path / "audit-results"
     audit.mkdir()
@@ -68,8 +104,7 @@ def test_aesthetic_accepts_independent_clone(tmp_path: Path):
         encoding="utf-8",
     )
     result = AestheticVerdictCheck().run({"root": tmp_path})
-    assert result.status == "passed"
-    assert result.details.get("independence") == "medium"
+    assert result.status == "failed"
 
 
 def test_aesthetic_rejects_reads_as_ai(tmp_path: Path):

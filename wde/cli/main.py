@@ -9,9 +9,7 @@ import sys
 from pathlib import Path
 
 from wde import __version__
-from wde.core.evidence import Evidence, write_evidence
 from wde.core.project_context import ProjectContext, init_project
-from wde.core.state_machine import apply_transition, can_transition
 
 
 def _root(args: argparse.Namespace) -> Path:
@@ -98,43 +96,18 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
 
 def cmd_transition(args: argparse.Namespace) -> int:
-    """Internal/core transition — records evidence. Not for freehand model use."""
-    ctx = ProjectContext(_root(args))
-    if not ctx.exists():
-        print("ERROR: not a WDE project", file=sys.stderr)
-        return 1
-    state = ctx.refresh_invalidation()
-    to_phase = args.to_phase
-    if not can_transition(state["phase"], to_phase) and not args.force:
-        print(
-            f"ERROR: illegal transition {state['phase']} → {to_phase}",
-            file=sys.stderr,
-        )
-        return 1
-    try:
-        if args.force and not can_transition(state["phase"], to_phase):
-            print("ERROR: --force cannot invent illegal edges", file=sys.stderr)
-            return 1
-        state = apply_transition(state, to_phase, evidence_id=args.evidence_id or "")
-    except ValueError as e:
-        print(f"ERROR: {e}", file=sys.stderr)
-        return 1
-
-    # Record a core evidence stub for the transition
-    ev = Evidence(
-        check_id=f"transition.{to_phase.lower()}",
-        status="passed",
-        executor="wde-core",
-        source_hash=(state.get("hashes") or {}).get("SOURCE", ""),
-        contract_hash=(state.get("hashes") or {}).get("DESIGN", ""),
-        details={"from": state["history"][-1]["from_phase"], "to": to_phase},
+    """REMOVED from public surface — phase jumps without domain events are forbidden."""
+    print(
+        "ERROR: `wde transition` was removed from the public CLI.\n"
+        "Phases advance only via domain events:\n"
+        "  wde validate intent|research|experience|design|lock\n"
+        "  wde run static|mechanical|browser|visual|…\n"
+        "  wde deliver-check\n"
+        "  wde review\n"
+        "Internal tests may call wde.core.state_machine.apply_transition in-process.",
+        file=sys.stderr,
     )
-    path = write_evidence(ctx.wde / "evidence", ev)
-    state.setdefault("valid_checks", {})[ev.check_id] = str(path.relative_to(ctx.root))
-    ctx.save_state(state)
-    print(f"transition OK → {to_phase}")
-    print(f"evidence: {path}")
-    return 0
+    return 2
 
 
 def cmd_version(_: argparse.Namespace) -> int:
@@ -175,6 +148,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
         validate_experience,
         validate_intent,
         validate_lock,
+        validate_research,
     )
 
     ctx = ProjectContext(_root(args))
@@ -183,17 +157,22 @@ def cmd_validate(args: argparse.Namespace) -> int:
         return 1
 
     target = args.target
+    # architecture is an alias of experience (UX / IA contract)
     validators = {
         "intent": validate_intent,
+        "research": validate_research,
         "experience": validate_experience,
+        "architecture": validate_experience,
         "design": validate_design,
         "lock": validate_lock,
     }
     if target not in validators:
         print(f"ERROR: unknown target {target}", file=sys.stderr)
         return 2
+    # architecture is an alias of experience for the state machine event
+    event_target = "experience" if target == "architecture" else target
     report = validators[target](ctx.root)
-    apply_validation_transition(ctx, target, report)
+    apply_validation_transition(ctx, event_target, report)
     state = ctx.load_state()
 
     payload = {"validation": report.to_dict(), "phase": state.get("phase")}
@@ -403,14 +382,16 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_doctor)
 
+    # `transition` intentionally NOT registered — public phase walking is forbidden.
+    # Legacy invocations hit unknown-command or we keep a stub that always errors:
     s = sub.add_parser(
         "transition",
         parents=[common],
-        help="Apply a legal state transition (wde-core only; for tools/tests)",
+        help="REMOVED — use validate/run/review domain events (always fails)",
     )
-    s.add_argument("to_phase")
+    s.add_argument("to_phase", nargs="?", default="")
     s.add_argument("--evidence-id", default="")
-    s.add_argument("--force", action="store_true", help="Unused guard — illegal edges still fail")
+    s.add_argument("--force", action="store_true")
     s.set_defaults(func=cmd_transition)
 
     s = sub.add_parser(
@@ -431,11 +412,11 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser(
         "validate",
         parents=[common],
-        help="Validate intent | experience | design | lock contracts",
+        help="Validate intent | research | experience | design | lock",
     )
     s.add_argument(
         "target",
-        choices=["intent", "experience", "design", "lock"],
+        choices=["intent", "research", "experience", "architecture", "design", "lock"],
     )
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_validate)

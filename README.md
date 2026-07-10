@@ -249,7 +249,7 @@ Canonical order: [`references/workflows/04-gates.md`](references/workflows/04-ga
 | **F6** | `audit_style_uniqueness` | block if score > 65 |
 | **F7** | `audit_beauty` | block if score < 50 |
 | **F8** | `audit_gestures` | yes if < 2/3 gestures |
-| **F9** | visual report + aesthetic verdict | floor 62 / pass 80; self cannot authorize |
+| **F9** | visual report + aesthetic verdict | floor 62 / **pass 80** + full dims; self cannot authorize; `independent-clone` is declared-only |
 | **F10** | `audit_layout` | L1–L3 block when `--url` |
 | **Eyes** | Playwright MCP rubric | skill-level mandatory |
 | **WOW** | `audit_wow` | when `--wow` |

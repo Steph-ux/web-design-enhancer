@@ -78,7 +78,36 @@ def transition_via(from_phase: str, to_phase: str) -> str | None:
     return TRANSITIONS.get((from_phase, to_phase))
 
 
+# Public CLI commands that next_action may emit — kept in sync with argparse.
+PUBLIC_NEXT_COMMANDS = frozenset(
+    {
+        "wde init",
+        "wde status",
+        "wde next",
+        "wde doctor",
+        "wde validate intent",
+        "wde validate research",
+        "wde validate experience",
+        "wde validate design",
+        "wde validate lock",
+        "wde run static",
+        "wde run mechanical",
+        "wde run browser",
+        "wde run visual",
+        "wde run wow",
+        "wde run deliver",
+        "wde run full",
+        "wde deliver-check",
+        "wde review",
+        "wde report",
+        "wde migrate-v2",
+        "wde benchmark",
+    }
+)
+
+
 def next_action_for(phase: str) -> NextAction:
+    """Every `.command` must be a real public CLI entry (see PUBLIC_NEXT_COMMANDS)."""
     table: dict[str, NextAction] = {
         "UNINITIALIZED": NextAction(
             "init",
@@ -89,55 +118,55 @@ def next_action_for(phase: str) -> NextAction:
         "INTENT_REQUIRED": NextAction(
             "write_brief",
             "Fill CREATIVE-BRIEF.md then validate intent",
-            "wde run intent.validate",
+            "wde validate intent",
             "agent",
         ),
         "INTENT_VALIDATED": NextAction(
             "research",
-            "Run design research pillars (search.py + getdesign)",
-            "wde run research.validate",
+            "Run design research pillars then validate research",
+            "wde validate research",
             "agent",
         ),
         "RESEARCH_REQUIRED": NextAction(
             "research_run",
-            "Execute fresh pillar tools and record artifacts",
-            "wde run research.validate",
+            "Prove pillars (search.py --persist + getdesign) then validate research",
+            "wde validate research",
             "agent",
         ),
         "RESEARCH_VALIDATED": NextAction(
             "architecture",
-            "Write EXPERIENCE-CONTRACT / IA",
-            "wde run architecture.validate",
+            "Write EXPERIENCE-CONTRACT then validate experience",
+            "wde validate experience",
             "agent",
         ),
         "ARCHITECTURE_REQUIRED": NextAction(
             "architecture_write",
-            "Complete experience contract and page objectives",
-            "wde run architecture.validate",
+            "Complete experience contract and validate experience",
+            "wde validate experience",
             "agent",
         ),
         "ARCHITECTURE_VALIDATED": NextAction(
             "design_contract",
-            "Write DESIGN.md + STRUCTURAL-LOCK.md",
-            "wde run contract.validate",
+            "Write DESIGN.md then validate design",
+            "wde validate design",
             "agent",
         ),
         "CONTRACT_REQUIRED": NextAction(
             "contracts",
-            "Complete DESIGN.md and structural lock",
-            "wde run contract.validate",
+            "Validate DESIGN.md and structural lock (design then lock)",
+            "wde validate design",
             "agent",
         ),
         "CONTRACT_VALIDATED": NextAction(
             "implement",
-            "Implementation is allowed under the lock",
-            "wde run implementation.allow",
-            "wde-core",
+            "Implementation allowed — implement UI then deliver-check",
+            "wde deliver-check",
+            "agent",
         ),
         "IMPLEMENTATION_ALLOWED": NextAction(
             "code",
-            "Implement UI (then re-hash / review)",
-            "wde status",
+            "Implement UI then run deliver-check",
+            "wde deliver-check",
             "agent",
         ),
         "IMPLEMENTATION_DIRTY": NextAction(
@@ -148,7 +177,7 @@ def next_action_for(phase: str) -> NextAction:
         ),
         "MECHANICAL_REVIEW_REQUIRED": NextAction(
             "mechanical_run",
-            "Run static/mechanical checks (slop, a11y, …)",
+            "Run mechanical checks (or deliver-check)",
             "wde run mechanical",
             "wde-core",
         ),
@@ -160,8 +189,8 @@ def next_action_for(phase: str) -> NextAction:
         ),
         "INDEPENDENT_REVIEW_REQUIRED": NextAction(
             "independent",
-            "Independent aesthetic / human review (non-self)",
-            "wde run independent",
+            "Emit review package + process independent aesthetic verdict",
+            "wde review",
             "wde-core",
         ),
         "READY_TO_DELIVER": NextAction(
@@ -184,7 +213,11 @@ def apply_transition(
     evidence_id: str | None = None,
     force_via: str | None = None,
 ) -> dict[str, Any]:
-    """Return a new state dict after a legal transition. Raises ValueError if illegal."""
+    """Internal helper for wde-core only — not a public CLI target.
+
+    Prefer domain events (`validate *`, `run *`, `review`, `deliver-check`) which
+    verify preconditions before calling this.
+    """
     from_phase = state.get("phase", "UNINITIALIZED")
     via = force_via or transition_via(from_phase, to_phase)
     if via is None:
@@ -213,6 +246,17 @@ def apply_transition(
     new_state["next_action"] = next_action_for(to_phase).to_dict()
     new_state["blockers"] = []
     return new_state
+
+
+def assert_next_command_is_public(command: str) -> None:
+    """Raise if next_action.command is not a known public CLI entry."""
+    base = (command or "").strip().split(" --")[0].strip()
+    # allow optional trailing args already stripped by split on --
+    # also accept exact matches from table
+    if base in PUBLIC_NEXT_COMMANDS:
+        return
+    # profile variants like "wde run mechanical" already in set
+    raise ValueError(f"next_action.command is not a public CLI command: {command!r}")
 
 
 def initial_state() -> dict[str, Any]:

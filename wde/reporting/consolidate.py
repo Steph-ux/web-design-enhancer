@@ -66,15 +66,33 @@ def build_consolidated(
     reports = collect_report_files(wde / "reports")
     evidence = collect_evidence(wde / "evidence")
     phase = state.get("phase", "UNINITIALIZED")
-    valid = state.get("valid_checks") or {}
     blockers = state.get("blockers") or []
-    forged_ready = phase == "READY_TO_DELIVER" and not valid
-    untrusted = [
-        e
-        for e in evidence
-        if e.get("executor") not in {None, "wde-core", "wde-check", "wde-browser", "wde-v2-bridge"}
-        and e.get("status") == "passed"
-    ]
+    hashes = state.get("hashes") or {}
+    # Recompute authority from disk — do not trust state.valid_checks alone
+    from wde.core.evidence import rebuild_valid_checks_from_disk, verify_evidence_envelope
+
+    rebuilt, rejected = rebuild_valid_checks_from_disk(
+        wde / "evidence",
+        root=root,
+        expected_source_hash=hashes.get("SOURCE", ""),
+        expected_contract_hash=hashes.get("DESIGN", ""),
+    )
+    valid = rebuilt
+    forged_ready = phase == "READY_TO_DELIVER" and (
+        not valid or "review.independent" not in valid or "slop.static" not in valid
+    )
+    untrusted = []
+    for e in evidence:
+        if e.get("status") != "passed":
+            continue
+        ok, reasons = verify_evidence_envelope(
+            e,
+            expected_source_hash=hashes.get("SOURCE", ""),
+            expected_contract_hash=hashes.get("DESIGN", ""),
+            root=root,
+        )
+        if not ok:
+            untrusted.append({"check_id": e.get("check_id"), "reasons": reasons})
     return {
         "schema_version": "3.0",
         "kind": "consolidated_report",
@@ -86,7 +104,7 @@ def build_consolidated(
         "valid_checks": valid,
         "invalidated_checks": state.get("invalidated_checks") or [],
         "blockers": blockers,
-        "hashes": state.get("hashes") or {},
+        "hashes": hashes,
         "degraded_mode": bool(state.get("degraded_mode")),
         "evidence_index": evidence,
         "report_index": [{"path": r["path"], "name": r["name"]} for r in reports],
@@ -94,6 +112,7 @@ def build_consolidated(
         "integrity": {
             "forged_ready_without_checks": forged_ready,
             "untrusted_passed_evidence": untrusted,
+            "rejected_envelopes": rejected[:20],
             "delivery_safe": (
                 phase != "READY_TO_DELIVER"
                 or (

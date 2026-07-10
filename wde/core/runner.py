@@ -7,7 +7,13 @@ from typing import Any
 
 from wde.checks.base import Check, CheckResult
 from wde.checks.registry import get_registry
-from wde.core.evidence import Evidence, write_evidence
+from wde.core.evidence import (
+    ALLOWED_EXECUTORS,
+    Evidence,
+    rebuild_valid_checks_from_disk,
+    verify_evidence_envelope,
+    write_evidence,
+)
 from wde.core.project_context import ProjectContext
 from wde.core.state_machine import apply_transition
 
@@ -107,8 +113,9 @@ def run_profile(
 
 def deliver_check(ctx: ProjectContext, *, url: str | None = None) -> tuple[bool, list[str], list[CheckResult]]:
     """
-    Re-hash, re-run mechanical static checks, verify evidence freshness.
-    Does NOT mark READY_TO_DELIVER without independent review (future).
+    Re-hash, re-run mechanical static checks, verify evidence integrity.
+    Rebuilds valid_checks from disk (state.json is not authority).
+    Does NOT mark READY_TO_DELIVER (needs independent review event).
     Returns (ok, blockers, results).
     """
     state = ctx.refresh_invalidation()
@@ -120,67 +127,69 @@ def deliver_check(ctx: ProjectContext, *, url: str | None = None) -> tuple[bool,
         if r.blocks_delivery:
             blockers.append(f"{r.check_id}: {r.summary}")
 
-    source_hash = (state.get("hashes") or {}).get("SOURCE", "")
-    for check_id, rel in list((state.get("valid_checks") or {}).items()):
-        path = ctx.root / rel
-        if not path.is_file():
-            blockers.append(f"{check_id}: evidence file missing ({rel})")
-            continue
-        try:
-            import json
+    # Authoritative hashes after run
+    state["hashes"] = {**(state.get("hashes") or {}), **ctx.compute_hashes()}
+    current_src = state["hashes"].get("SOURCE", "")
+    current_contract = state["hashes"].get("DESIGN", "")
 
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            blockers.append(f"{check_id}: evidence unreadable")
+    # Rebuild valid_checks from verified envelopes only
+    rebuilt, rejected = rebuild_valid_checks_from_disk(
+        ctx.wde / "evidence",
+        root=ctx.root,
+        expected_source_hash=current_src,
+        expected_contract_hash=current_contract,
+    )
+    for msg in rejected:
+        # Do not block on intentional failed envelopes — only forged/tampered/stale passed ones
+        low = msg.lower()
+        if "status is 'failed'" in low or 'status is "failed"' in low or "not passed" in low:
             continue
-        if data.get("executor") not in {"wde-core", "wde-check", "wde-browser", "wde-v2-bridge"}:
-            blockers.append(f"{check_id}: executor not trusted ({data.get('executor')})")
-        if source_hash and data.get("source_hash") != source_hash:
-            blockers.append(f"{check_id}: stale evidence (source_hash mismatch) — re-run checks")
-        if data.get("status") != "passed":
-            blockers.append(f"{check_id}: evidence status is {data.get('status')}")
+        blockers.append(f"evidence rejected: {msg}")
+
+    # Cross-check any leftover state pointers
+    for check_id, rel in list((state.get("valid_checks") or {}).items()):
+        if check_id not in rebuilt:
+            path = ctx.root / rel
+            if path.is_file():
+                try:
+                    import json as _json
+
+                    data = _json.loads(path.read_text(encoding="utf-8"))
+                except Exception:
+                    blockers.append(f"{check_id}: evidence unreadable")
+                    continue
+                ok, reasons = verify_evidence_envelope(
+                    data,
+                    expected_source_hash=current_src,
+                    expected_contract_hash=current_contract,
+                    root=ctx.root,
+                )
+                if not ok:
+                    blockers.append(f"{check_id}: {'; '.join(reasons)}")
+            else:
+                blockers.append(f"{check_id}: evidence file missing ({rel})")
+
+    state["valid_checks"] = rebuilt
 
     # Required minimum for any delivery claim
     required = {"slop.static"}
-    valid = set((state.get("valid_checks") or {}).keys())
+    valid = set(rebuilt.keys())
     for r in required:
         if r not in valid:
-            # if just ran and passed, valid_checks should have it
             just_passed = any(x.check_id == r and x.status == "passed" for x in results)
             if not just_passed:
                 blockers.append(f"missing required fresh check: {r}")
 
-    # Drop any valid_checks whose on-disk evidence no longer matches current SOURCE
-    state = ctx.load_state()
-    current_src = (state.get("hashes") or {}).get("SOURCE") or ctx.compute_hashes().get("SOURCE", "")
-    state["hashes"] = {**(state.get("hashes") or {}), **ctx.compute_hashes()}
-    current_src = state["hashes"].get("SOURCE", current_src)
-    cleaned: dict[str, str] = {}
-    for check_id, rel in list((state.get("valid_checks") or {}).items()):
-        path = ctx.root / rel
-        if not path.is_file():
-            blockers.append(f"{check_id}: evidence file missing after run ({rel})")
-            continue
-        try:
-            import json as _json
-
-            data = _json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
-            blockers.append(f"{check_id}: evidence unreadable after run")
-            continue
-        if data.get("status") == "passed" and data.get("source_hash") != current_src:
-            blockers.append(f"{check_id}: stale evidence after source change — re-run checks")
-            continue
-        if data.get("status") == "passed" and data.get("executor") not in {
-            "wde-core",
-            "wde-check",
-            "wde-browser",
-            "wde-v2-bridge",
-        }:
-            blockers.append(f"{check_id}: executor not trusted ({data.get('executor')})")
-            continue
-        cleaned[check_id] = rel
-    state["valid_checks"] = cleaned
+    # If READY was hand-set without review.independent verified → demote
+    if state.get("phase") == "READY_TO_DELIVER":
+        if "review.independent" not in rebuilt:
+            blockers.append(
+                "READY_TO_DELIVER without verified review.independent evidence — forged or incomplete"
+            )
+            try:
+                state = apply_transition(state, "IMPLEMENTATION_DIRTY")
+            except ValueError:
+                state["phase"] = "IMPLEMENTATION_DIRTY"
 
     ok = len(blockers) == 0
 

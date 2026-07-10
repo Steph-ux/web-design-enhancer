@@ -122,13 +122,47 @@ class ProjectContext:
             return issues
         state = self.load_state()
         if state.get("phase") == "READY_TO_DELIVER":
-            # Verify no agent forged empty valid_checks
-            if not state.get("valid_checks"):
+            from wde.core.evidence import rebuild_valid_checks_from_disk
+
+            hashes = self.compute_hashes()
+            rebuilt, rejected = rebuild_valid_checks_from_disk(
+                self.wde / "evidence",
+                root=self.root,
+                expected_source_hash=hashes.get("SOURCE", ""),
+                expected_contract_hash=hashes.get("DESIGN", ""),
+            )
+            if not rebuilt:
                 issues.append(
                     {
                         "code": "forged_delivery",
-                        "message": "READY_TO_DELIVER without valid_checks — re-run wde deliver-check",
-                        "remediation": "wde run mechanical && wde run visual",
+                        "message": "READY_TO_DELIVER without any verified evidence envelopes",
+                        "remediation": "wde run mechanical && wde review",
+                    }
+                )
+            if "review.independent" not in rebuilt:
+                issues.append(
+                    {
+                        "code": "forged_delivery",
+                        "message": "READY_TO_DELIVER without verified review.independent evidence",
+                        "remediation": "wde review with independent|human verdict",
+                    }
+                )
+            if "slop.static" not in rebuilt:
+                issues.append(
+                    {
+                        "code": "forged_delivery",
+                        "message": "READY_TO_DELIVER without verified slop.static evidence",
+                        "remediation": "wde run static",
+                    }
+                )
+            # state.json valid_checks is not trusted — flag divergence
+            claimed = set((state.get("valid_checks") or {}).keys())
+            if claimed - set(rebuilt.keys()):
+                issues.append(
+                    {
+                        "code": "state_checks_unverified",
+                        "message": "state.valid_checks contains entries that fail envelope verification",
+                        "remediation": "wde deliver-check (rebuilds from disk)",
                     }
                 )
         # Contract files expected after certain phases

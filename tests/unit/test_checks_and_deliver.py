@@ -89,11 +89,22 @@ def test_stale_evidence_blocks_deliver_after_code_change(tmp_path: Path):
     state2["valid_checks"] = {"slop.static": str(path.relative_to(tmp_path)).replace("\\", "/")}
     ctx.save_state(state2)
 
+    from wde.core.evidence import verify_evidence_envelope
+
+    # Capture stale envelope content before deliver re-runs checks
+    stale = json.loads(path.read_text(encoding="utf-8"))
+    fresh_hash = ctx.compute_hashes()["SOURCE"]
+    still_ok, reasons = verify_evidence_envelope(
+        stale, expected_source_hash=fresh_hash, root=tmp_path
+    )
+    assert not still_ok
+    assert any("source_hash" in r for r in reasons)
+
     ok, blockers, _results = deliver_check(ctx)
-    # deliver re-runs checks; even if slop passes on clean html, stale hash on old evidence path
-    # is rewritten. Critical: forged self-written evidence with wrong executor must fail if we
-    # plant agent executor:
     assert isinstance(blockers, list)
+    # Must not treat empty blockers as "forged path ignored" without verification
+    # After code change, a pure re-attach of stale evidence cannot pass integrity alone:
+    assert still_ok is False
 
 
 def test_forged_agent_evidence_rejected(tmp_path: Path):

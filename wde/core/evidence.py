@@ -1,8 +1,18 @@
-"""Evidence envelopes — only wde-core (or registered runners) may create 'passed'."""
+"""Evidence envelopes — only wde-core (or registered runners) may create 'passed'.
+
+Local trust model:
+- `result_digest` is always recomputed on verify (detects accidental tampering).
+- Optional `WDE_EVIDENCE_SECRET` HMAC makes envelopes hard to forge without the secret.
+Without a secret / external signer, a fully privileged agent can still re-seal forged
+envelopes — we document that as *local* integrity, not absolute non-forgeability.
+"""
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
+import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -12,6 +22,24 @@ from wde import __version__
 from wde.core.hashing import sha256_text
 
 ALLOWED_EXECUTORS = frozenset({"wde-core", "wde-check", "wde-browser", "wde-v2-bridge"})
+
+
+def _canonical_payload(ev: dict[str, Any]) -> str:
+    payload = {k: v for k, v in ev.items() if k not in {"result_digest", "signature"}}
+    return json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+
+
+def compute_result_digest(ev: dict[str, Any]) -> str:
+    return sha256_text(_canonical_payload(ev))
+
+
+def compute_signature(ev: dict[str, Any], secret: str) -> str:
+    digest = ev.get("result_digest") or compute_result_digest(ev)
+    return hmac.new(
+        secret.encode("utf-8"),
+        digest.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
 
 
 @dataclass
@@ -27,6 +55,7 @@ class Evidence:
     environment: dict[str, Any] = field(default_factory=dict)
     artifacts: list[str] = field(default_factory=list)
     result_digest: str = ""
+    signature: str = ""
     details: dict[str, Any] = field(default_factory=dict)
     rule_category: str = "functional_quality"
 
@@ -41,14 +70,17 @@ class Evidence:
             )
 
     def seal(self) -> "Evidence":
-        """Compute result_digest from canonical payload (excluding digest itself)."""
+        """Compute result_digest (+ optional HMAC signature)."""
         self.validate_writer()
         if not self.executed_at:
             self.executed_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        payload = self.to_dict()
-        payload.pop("result_digest", None)
-        canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
-        self.result_digest = sha256_text(canonical)
+        # Clear previous seals before hashing
+        self.result_digest = ""
+        self.signature = ""
+        self.result_digest = compute_result_digest(self.to_dict())
+        secret = os.environ.get("WDE_EVIDENCE_SECRET", "").strip()
+        if secret:
+            self.signature = compute_signature(self.to_dict(), secret)
         return self
 
 
@@ -69,10 +101,95 @@ def load_evidence(path: Path) -> dict[str, Any]:
 
 
 def evidence_is_fresh(ev: dict[str, Any], expected_source_hash: str) -> bool:
+    ok, _ = verify_evidence_envelope(ev, expected_source_hash=expected_source_hash)
+    return ok
+
+
+def verify_evidence_envelope(
+    ev: dict[str, Any],
+    *,
+    expected_source_hash: str = "",
+    expected_contract_hash: str = "",
+    root: Path | None = None,
+    require_signature_if_configured: bool = True,
+) -> tuple[bool, list[str]]:
+    """Full integrity check — never trust executor string alone."""
+    reasons: list[str] = []
+    if not isinstance(ev, dict):
+        return False, ["evidence not an object"]
+
     if ev.get("status") != "passed":
-        return False
+        reasons.append(f"status is {ev.get('status')!r}, not passed")
+
     if ev.get("executor") not in ALLOWED_EXECUTORS:
-        return False
+        reasons.append(f"executor not trusted ({ev.get('executor')!r})")
+
+    claimed_digest = str(ev.get("result_digest") or "")
+    recomputed = compute_result_digest(ev)
+    if not claimed_digest:
+        reasons.append("result_digest missing")
+    elif claimed_digest != recomputed:
+        reasons.append("result_digest mismatch (tampered or hand-written envelope)")
+
+    secret = os.environ.get("WDE_EVIDENCE_SECRET", "").strip()
+    if require_signature_if_configured and secret:
+        claimed_sig = str(ev.get("signature") or "")
+        expected_sig = compute_signature({**ev, "result_digest": recomputed}, secret)
+        if not claimed_sig or not hmac.compare_digest(claimed_sig, expected_sig):
+            reasons.append("HMAC signature missing or invalid (WDE_EVIDENCE_SECRET set)")
+
     if expected_source_hash and ev.get("source_hash") != expected_source_hash:
-        return False
-    return True
+        reasons.append("source_hash mismatch (stale)")
+
+    if expected_contract_hash:
+        ch = ev.get("contract_hash") or ""
+        if ch and ch != expected_contract_hash:
+            reasons.append("contract_hash mismatch")
+
+    if root is not None:
+        for art in ev.get("artifacts") or []:
+            if not art:
+                continue
+            p = Path(str(art))
+            if not p.is_file():
+                p2 = root / str(art)
+                if not p2.is_file():
+                    reasons.append(f"missing artifact: {art}")
+
+    return len(reasons) == 0, reasons
+
+
+def rebuild_valid_checks_from_disk(
+    evidence_dir: Path,
+    *,
+    root: Path,
+    expected_source_hash: str = "",
+    expected_contract_hash: str = "",
+) -> tuple[dict[str, str], list[str]]:
+    """Reconstruct valid_checks only from envelopes that fully verify."""
+    valid: dict[str, str] = {}
+    rejected: list[str] = []
+    if not evidence_dir.is_dir():
+        return valid, rejected
+    for path in sorted(evidence_dir.glob("*.json")):
+        try:
+            ev = load_evidence(path)
+        except (OSError, json.JSONDecodeError) as e:
+            rejected.append(f"{path.name}: unreadable ({e})")
+            continue
+        ok, reasons = verify_evidence_envelope(
+            ev,
+            expected_source_hash=expected_source_hash,
+            expected_contract_hash=expected_contract_hash,
+            root=root,
+        )
+        if ok and ev.get("check_id"):
+            try:
+                rel = str(path.resolve().relative_to(root.resolve())).replace("\\", "/")
+            except ValueError:
+                rel = str(path).replace("\\", "/")
+            valid[str(ev["check_id"])] = rel
+        else:
+            cid = ev.get("check_id") or path.name
+            rejected.append(f"{cid}: {'; '.join(reasons)}")
+    return valid, rejected

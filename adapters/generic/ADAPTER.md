@@ -18,7 +18,8 @@ wde status --json
 wde next
 # agent fills CREATIVE-BRIEF.md
 wde validate intent
-# pillars: search.py --persist + npx getdesign
+# pillars: search.py --persist + npx getdesign  → then:
+wde validate research
 wde validate experience
 wde validate design
 wde validate lock
@@ -26,9 +27,10 @@ wde validate lock
 wde run static
 wde deliver-check
 wde review --emit-package --url http://localhost:5173
-# independent judge writes audit-results/aesthetic-verdict.json
+# judge writes audit-results/aesthetic-verdict.json (reviewer: independent|human)
 wde review --url http://localhost:5173
 wde run browser --url http://localhost:5173
+# never: wde transition <phase>
 ```
 
 ## Capabilities JSON (declare honestly)

@@ -153,6 +153,77 @@ def validate_intent(root: Path) -> ValidationReport:
     return ValidationReport("intent", len(blocking) == 0, issues)
 
 
+def validate_research(root: Path) -> ValidationReport:
+    """Prove Phase 0 pillars left real artifacts (not a free-hand phase jump)."""
+    issues: list[ValidationIssue] = []
+    pro_max_hits = [
+        root / "design-system-output.md",
+        *root.glob("design-system/**/MASTER.md"),
+        *root.glob("**/design-system-output.md"),
+    ]
+    getdesign_hits = [
+        *root.glob("getdesign-*.md"),
+        *root.glob("**/getdesign-*.md"),
+        root / "bugatti" / "DESIGN.md",
+    ]
+    # brand folders from getdesign often land as <brand>/DESIGN.md
+    brand_designs = [
+        p
+        for p in root.glob("*/DESIGN.md")
+        if p.parent.name not in {".wde", "templates", "references", "examples"}
+    ]
+    design_md = root / "DESIGN.md"
+    has_pro = any(p.is_file() for p in pro_max_hits)
+    has_gd = any(p.is_file() for p in getdesign_hits) or any(p.is_file() for p in brand_designs)
+    phase0_ok = False
+    if design_md.is_file():
+        text = design_md.read_text(encoding="utf-8", errors="replace")
+        phase0_ok = (
+            "Sources Phase 0" in text
+            or "0a." in text
+            or "getdesign" in text.lower()
+            or "design-system" in text.lower()
+        )
+
+    if not has_pro and not phase0_ok:
+        issues.append(
+            ValidationIssue(
+                "research_promax",
+                "Missing Pro Max / design-system artifact (design-system-output.md or design-system/**/MASTER.md)",
+                remediation="python scripts/search.py \"…\" --design-system -p <name> --persist",
+            )
+        )
+    if not has_gd and not phase0_ok:
+        issues.append(
+            ValidationIssue(
+                "research_getdesign",
+                "Missing getdesign visual reference artifact",
+                remediation="npx getdesign@latest add <brand>  (keep path documented in DESIGN.md §0)",
+            )
+        )
+    if not has_pro and not has_gd and not phase0_ok:
+        issues.append(
+            ValidationIssue(
+                "research_empty",
+                "No research pillars detected — cannot validate research",
+                remediation="Run search.py --persist and getdesign, document in DESIGN.md Phase 0",
+            )
+        )
+    # Prefer at least one hard artifact even if DESIGN.md mentions sources
+    if phase0_ok and not has_pro and not has_gd:
+        issues.append(
+            ValidationIssue(
+                "research_docs_only",
+                "DESIGN.md mentions sources but no on-disk pillar artifacts found",
+                severity="blocking",
+                remediation="Persist design-system-output.md and/or getdesign folder",
+            )
+        )
+
+    blocking = [i for i in issues if i.severity == "blocking"]
+    return ValidationReport("research", len(blocking) == 0, issues)
+
+
 def validate_experience(root: Path) -> ValidationReport:
     path = root / "EXPERIENCE-CONTRACT.md"
     issues: list[ValidationIssue] = []
@@ -316,21 +387,19 @@ def apply_validation_transition(ctx, target: str, report: ValidationReport) -> N
         if target == "intent" and phase == "INTENT_REQUIRED":
             state = apply_transition(state, "INTENT_VALIDATED")
             state = apply_transition(state, "RESEARCH_REQUIRED")
-        elif target == "experience" and phase in {
+        elif target == "research" and phase in {"RESEARCH_REQUIRED", "INTENT_VALIDATED"}:
+            if phase == "INTENT_VALIDATED":
+                state = apply_transition(state, "RESEARCH_REQUIRED")
+            state = apply_transition(state, "RESEARCH_VALIDATED")
+            state = apply_transition(state, "ARCHITECTURE_REQUIRED")
+        elif target in {"experience", "architecture"} and phase in {
             "RESEARCH_VALIDATED",
             "ARCHITECTURE_REQUIRED",
-            "INTENT_VALIDATED",
-            "RESEARCH_REQUIRED",
         }:
-            # Allow experience after research; if still early, jump carefully
-            if phase == "RESEARCH_REQUIRED":
-                # research not validated — only record evidence
-                pass
-            elif phase == "RESEARCH_VALIDATED":
+            if phase == "RESEARCH_VALIDATED":
                 state = apply_transition(state, "ARCHITECTURE_REQUIRED")
-                state = apply_transition(state, "ARCHITECTURE_VALIDATED")
-            elif phase == "ARCHITECTURE_REQUIRED":
-                state = apply_transition(state, "ARCHITECTURE_VALIDATED")
+            state = apply_transition(state, "ARCHITECTURE_VALIDATED")
+            state = apply_transition(state, "CONTRACT_REQUIRED")
         elif target == "design" and phase in {
             "ARCHITECTURE_VALIDATED",
             "CONTRACT_REQUIRED",
@@ -339,26 +408,46 @@ def apply_validation_transition(ctx, target: str, report: ValidationReport) -> N
             if phase == "ARCHITECTURE_VALIDATED":
                 state = apply_transition(state, "CONTRACT_REQUIRED")
             # stay CONTRACT_REQUIRED until lock also ok — design alone partial
+            if "contract.lock" in (state.get("valid_checks") or {}):
+                state = apply_transition(state, "CONTRACT_VALIDATED")
+                state = apply_transition(state, "IMPLEMENTATION_ALLOWED")
+            else:
+                na = {
+                    "id": "lock_next",
+                    "summary": "DESIGN.md OK — validate structural lock next",
+                    "command": "wde validate lock",
+                    "allowed_writer": "agent",
+                }
+                state["next_action"] = na
         elif target == "lock" and phase in {"CONTRACT_REQUIRED", "CONTRACT_VALIDATED"}:
             if phase == "CONTRACT_REQUIRED":
-                # need design evidence too ideally
                 has_design = "contract.design" in (state.get("valid_checks") or {})
                 if has_design:
                     state = apply_transition(state, "CONTRACT_VALIDATED")
                     state = apply_transition(state, "IMPLEMENTATION_ALLOWED")
-        elif target == "design" and phase == "CONTRACT_REQUIRED":
-            has_lock = "contract.lock" in (state.get("valid_checks") or {})
-            if has_lock:
-                state = apply_transition(state, "CONTRACT_VALIDATED")
-                state = apply_transition(state, "IMPLEMENTATION_ALLOWED")
+                else:
+                    state["blockers"] = [
+                        {
+                            "code": "design_first",
+                            "message": "Validate design before lock can unlock implementation",
+                            "remediation": "wde validate design",
+                        }
+                    ]
+                    ctx.save_state(state)
+                    return
     except ValueError:
         pass
 
-    # lock check id
+    # Alias check ids for lock
     if target == "lock":
         state.setdefault("valid_checks", {})["contract.lock"] = state["valid_checks"].get(
             ev.check_id, ""
         )
+    if target == "research":
+        state.setdefault("valid_checks", {})["contract.research"] = state["valid_checks"].get(
+            ev.check_id, ""
+        )
 
-    state["blockers"] = []
+    if not state.get("blockers"):
+        state["blockers"] = []
     ctx.save_state(state)

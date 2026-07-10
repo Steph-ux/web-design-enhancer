@@ -185,18 +185,30 @@ def process_review(
     aesthetic = next((r for r in results if r.check_id == "visual.aesthetic"), None)
     aesthetic_ok = aesthetic is not None and aesthetic.status == "passed"
     independence = (aesthetic.details or {}).get("independence") if aesthetic else "unavailable"
+    independence_class = (
+        (aesthetic.details or {}).get("independence_class") if aesthetic else "weak"
+    )
 
-    # Advance state carefully
+    # Advance state carefully — READY only with verified (strong) independence
+    # Declared (medium / independent-clone) stays INDEPENDENT_REVIEW_REQUIRED unless
+    # WDE_ALLOW_DECLARED_INDEPENDENCE=1 and aesthetic check already passed.
+    import os
+
+    allow_declared = os.environ.get("WDE_ALLOW_DECLARED_INDEPENDENCE", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    can_ready = aesthetic_ok and (
+        independence == "strong"
+        or (independence == "medium" and independence_class == "declared" and allow_declared)
+    )
+
     try:
         if visual_ok and state.get("phase") == "VISUAL_REVIEW_REQUIRED":
             state = apply_transition(state, "INDEPENDENT_REVIEW_REQUIRED")
-        if (
-            aesthetic_ok
-            and independence in {"strong", "medium"}
-            and state.get("phase") == "INDEPENDENT_REVIEW_REQUIRED"
-        ):
+        if can_ready and state.get("phase") == "INDEPENDENT_REVIEW_REQUIRED":
             state = apply_transition(state, "READY_TO_DELIVER")
-            # Record independent evidence
             hashes = state.get("hashes") or {}
             ev = Evidence(
                 check_id="review.independent",
@@ -204,19 +216,31 @@ def process_review(
                 executor="wde-core",
                 source_hash=hashes.get("SOURCE", ""),
                 contract_hash=hashes.get("DESIGN", ""),
-                details={"independence": independence, "aesthetic": aesthetic.to_dict()},
+                details={
+                    "independence": independence,
+                    "independence_class": independence_class,
+                    "aesthetic": aesthetic.to_dict() if aesthetic else {},
+                },
                 rule_category="taste_preference",
             )
             path = write_evidence(ctx.wde / "evidence", ev)
             state.setdefault("valid_checks", {})[ev.check_id] = str(
                 path.relative_to(ctx.root)
             ).replace("\\", "/")
+        elif aesthetic_ok and independence == "medium" and not allow_declared:
+            state["blockers"] = [
+                {
+                    "code": "declared_independence",
+                    "message": "independent-clone is declared-only — not enough for READY under strict mode",
+                    "remediation": "Use reviewer independent|human, or set WDE_ALLOW_DECLARED_INDEPENDENCE=1 for local demos",
+                }
+            ]
         elif aesthetic and independence == "weak":
             state["blockers"] = [
                 {
                     "code": "weak_independence",
                     "message": "reviewer is self/agent — delivery stays unverified for independent review",
-                    "remediation": "Re-judge with independent-clone / independent / human",
+                    "remediation": "Re-judge with independent / human reviewer",
                 }
             ]
         ctx.save_state(state)

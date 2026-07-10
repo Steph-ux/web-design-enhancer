@@ -37,11 +37,12 @@ Follow only `next_action`. Deeper refs:
 ## Core loop
 
 ```bash
-wde validate intent|experience|design|lock --root <project>
+wde validate intent|research|experience|design|lock --root <project>
 wde run static --root <project>
 wde deliver-check --root <project>
 wde review --emit-package --url <url> --root <project>
-# independent judge → aesthetic-verdict.json (never self for delivery)
+# judge → aesthetic-verdict.json (reviewer: independent|human — not self;
+# independent-clone is declared-only unless WDE_ALLOW_DECLARED_INDEPENDENCE=1)
 wde review --url <url> --root <project>
 wde report --root <project>
 ```
@@ -49,9 +50,10 @@ wde report --root <project>
 ## Forbidden
 
 - Hand-edit `.wde/state.json` / write `.wde/evidence/` as the model
-- Claim READY without independent review evidence
+- Use `wde transition` (removed — always errors)
+- Claim READY without **verified** independent review evidence
 - Invent metrics, testimonials, trusted-by
-- Skip pillars (use fresh `search.py --persist` + `npx getdesign`)
+- Skip pillars (use fresh `search.py --persist` + `npx getdesign`, then `wde validate research`)
 
 ## Benchmark / migrate
 

@@ -38,5 +38,6 @@ def test_init_status_next(tmp_path: Path):
 def test_transition_to_ready_from_intent_fails(tmp_path: Path):
     assert _wde("init", "--root", str(tmp_path), cwd=ROOT).returncode == 0
     r = _wde("transition", "READY_TO_DELIVER", "--root", str(tmp_path), cwd=ROOT)
-    assert r.returncode == 1
-    assert "illegal" in r.stderr.lower() or "ERROR" in r.stderr
+    # Public transition removed — always hard-fail (no phase walk)
+    assert r.returncode == 2
+    assert "removed" in r.stderr.lower() or "ERROR" in r.stderr
