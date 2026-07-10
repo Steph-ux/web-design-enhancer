@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def _wde(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess:
     return subprocess.run(
-        [sys.executable, "-m", "wde.cli.main", *args],
+        [sys.executable, "-m", "wde", *args],
         cwd=str(cwd or ROOT),
         capture_output=True,
         text=True,

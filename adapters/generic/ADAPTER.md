@@ -4,31 +4,31 @@ Works with any agent that can read files, run shell commands, and edit the proje
 
 ## Rules (non-negotiable)
 
-1. Run `python -m wde.cli.main status --json` (or `wde status --json`) at session start and after every significant change.
+1. Run `wde status --json` (fallback: `python -m wde status --json`) at session start and after every significant change.
 2. Perform **only** the action in `next_action.command` / `next_action.summary`.
 3. Never hand-edit `.wde/state.json` or write files under `.wde/evidence/`.
 4. Never claim “gate passed” without the CLI printing success + an evidence file under `.wde/evidence/`.
-5. Before any delivery claim, run `python -m wde.cli.main deliver-check` and, when available, visual review. If `degraded_mode` is true, say so explicitly — do not invent screenshots.
+5. Before any delivery claim, run `wde deliver-check` and, when available, visual review. If `degraded_mode` is true, say so explicitly — do not invent screenshots.
 
 ## Typical loop
 
 ```bash
-python -m wde.cli.main init
-python -m wde.cli.main status --json
-python -m wde.cli.main next
+wde init
+wde status --json
+wde next
 # agent fills CREATIVE-BRIEF.md
-python -m wde.cli.main validate intent
+wde validate intent
 # pillars: search.py --persist + npx getdesign
-python -m wde.cli.main validate experience
-python -m wde.cli.main validate design
-python -m wde.cli.main validate lock
+wde validate experience
+wde validate design
+wde validate lock
 # implement UI under STRUCTURAL-LOCK
-python -m wde.cli.main run static
-python -m wde.cli.main deliver-check
-python -m wde.cli.main review --emit-package --url http://localhost:5173
+wde run static
+wde deliver-check
+wde review --emit-package --url http://localhost:5173
 # independent judge writes audit-results/aesthetic-verdict.json
-python -m wde.cli.main review --url http://localhost:5173
-python -m wde.cli.main run browser --url http://localhost:5173
+wde review --url http://localhost:5173
+wde run browser --url http://localhost:5173
 ```
 
 ## Capabilities JSON (declare honestly)

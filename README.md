@@ -11,15 +11,16 @@
 V3 wraps the V2 validation arsenal in a **stateful, evidence-driven CLI** so agents cannot claim “gate passed” without fresh proof. Version: **`3.0.0a1`**. Full notes: [`docs/V3.md`](docs/V3.md) · plan: [`docs/superpowers/specs/2026-07-10-wde-v3-plan.md`](docs/superpowers/specs/2026-07-10-wde-v3-plan.md).
 
 ```bash
-pip install -e .          # from this repo
-python -m wde.cli.main init --root <project>
-python -m wde.cli.main next --root <project>
-python -m wde.cli.main validate intent|experience|design|lock --root <project>
-python -m wde.cli.main run static --root <project>
-python -m wde.cli.main deliver-check --root <project>
-python -m wde.cli.main review --emit-package --url http://localhost:5173 --root <project>
-python -m wde.cli.main report --root <project>
-python -m wde.cli.main benchmark --corpus   # never auto-delivers
+pip install -e .          # from this repo → installs the `wde` command
+wde init --root <project>
+wde next --root <project>
+wde validate intent|experience|design|lock --root <project>
+wde run static --root <project>
+wde deliver-check --root <project>
+wde review --emit-package --url http://localhost:5173 --root <project>
+wde report --root <project>
+wde benchmark --corpus   # never auto-delivers
+# fallbacks if `wde` not on PATH:  python -m wde …   |   python wde.py …
 ```
 
 | Piece | Role |

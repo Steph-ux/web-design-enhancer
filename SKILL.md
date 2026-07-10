@@ -14,10 +14,12 @@ This file is the **thin skill adapter**. Do not invent gates — drive the CLI.
 
 ## Bootstrap
 
+Prefer the short CLI (`wde` after `pip install -e .`, else `python -m wde`):
+
 ```bash
-python -m wde.cli.main init --root <project>
-python -m wde.cli.main status --json --root <project>
-python -m wde.cli.main next --root <project>
+wde init --root <project>
+wde status --json --root <project>
+wde next --root <project>
 ```
 
 Follow only `next_action`. Deeper refs:
@@ -35,13 +37,13 @@ Follow only `next_action`. Deeper refs:
 ## Core loop
 
 ```bash
-python -m wde.cli.main validate intent|experience|design|lock --root <project>
-python -m wde.cli.main run static --root <project>
-python -m wde.cli.main deliver-check --root <project>
-python -m wde.cli.main review --emit-package --url <url> --root <project>
+wde validate intent|experience|design|lock --root <project>
+wde run static --root <project>
+wde deliver-check --root <project>
+wde review --emit-package --url <url> --root <project>
 # independent judge → aesthetic-verdict.json (never self for delivery)
-python -m wde.cli.main review --url <url> --root <project>
-python -m wde.cli.main report --root <project>
+wde review --url <url> --root <project>
+wde report --root <project>
 ```
 
 ## Forbidden
@@ -54,8 +56,8 @@ python -m wde.cli.main report --root <project>
 ## Benchmark / migrate
 
 ```bash
-python -m wde.cli.main benchmark --corpus
-python -m wde.cli.main migrate-v2 --root <project>
+wde benchmark --corpus
+wde migrate-v2 --root <project>
 ```
 
 V2 scripts remain under `scripts/` — invoked only through trusted `wde-core` checks.

@@ -13,7 +13,7 @@ FIXTURE = ROOT / "examples" / "v3-fixture"
 
 def _wde(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
-        [sys.executable, "-m", "wde.cli.main", *args],
+        [sys.executable, "-m", "wde", *args],
         cwd=str(ROOT),
         capture_output=True,
         text=True,
