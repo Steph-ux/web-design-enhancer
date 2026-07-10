@@ -104,6 +104,35 @@ def test_discover_cli_entry(tmp_path: Path):
     assert r3.returncode == 0, r3.stderr + r3.stdout
 
 
+def test_discovery_contracts_pass_design_experience_lock(tmp_path: Path):
+    """Criterion 4: compiled contracts must pass wde validate design/experience/lock."""
+    from wde.domains.contracts import (
+        validate_design,
+        validate_experience,
+        validate_lock,
+    )
+
+    result = run_discovery(
+        tmp_path,
+        "modern premium website for a hospitality branding agency",
+        try_getdesign=False,
+    )
+    assert result.ok, result.errors
+    # Direct domain validators (same path as CLI)
+    exp = validate_experience(tmp_path)
+    assert exp.ok, [i.message for i in exp.issues]
+    des = validate_design(tmp_path)
+    assert des.ok, [i.message for i in des.issues] + [
+        # surface validate_design remediation if present
+        *( [i.remediation] if i.remediation else [] for i in des.issues )
+    ]
+    lock = validate_lock(tmp_path)
+    assert lock.ok, [i.message for i in lock.issues]
+    # CLI entry for design (real shipped path)
+    r = _wde("validate", "design", "--root", str(tmp_path), cwd=ROOT)
+    assert r.returncode == 0, r.stderr + r.stdout
+
+
 def test_discover_in_public_next_commands():
     assert "wde discover" in PUBLIC_NEXT_COMMANDS
     na = next_action_for("INTENT_REQUIRED")
