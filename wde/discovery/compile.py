@@ -255,20 +255,114 @@ def compile_design_md(
     winner: Territory,
     receipt_paths: list[str],
 ) -> str:
-    """Emit DESIGN.md that passes scripts/validate_design.py (max 8 hex, §7 motion, §8 dark)."""
+    """Emit DESIGN.md from the *winner territory tokens* (never a global dark default).
+
+    Passes scripts/validate_design.py (max 8 hex in §2, §7 motion, §8 dark present).
+    Light editorial winners must compile light primary canvas (e.g. #F3EEE4).
+    """
     receipts = ", ".join(receipt_paths) if receipt_paths else "see .wde/research/"
     anti = _sanitize_anti_refs(list(winner.anti_references))
-    # Single committed dark-first palette (exactly 8 hex codes in §2)
-    # Background dark → §8 mandatory with its own hexes
+    tok = winner.resolved_tokens()
     motion_ms = 120 if winner.motion_level <= 3 else (200 if winner.motion_level <= 6 else 320)
-    display_font = "Fraunces" if "serif" in winner.typography.lower() else "IBM Plex Sans"
-    body_font = "IBM Plex Sans"
-    mono_font = "IBM Plex Mono"
+    # Cap motion language when territory is sober
+    if winner.motion_level <= 2:
+        motion_ms = min(motion_ms, 150)
+    display_font = tok.display_font
+    body_font = tok.body_font
+    mono_font = tok.mono_font
     h1_px = 64 if winner.motion_level < 7 else 56
+
+    bg, surface, text, muted, border, accent = (
+        tok.background,
+        tok.surface,
+        tok.text,
+        tok.muted,
+        tok.border,
+        tok.accent,
+    )
+    success, danger = tok.success, tok.danger
+
+    # §8: if light-first, dark tokens are alternate; never claim Dark-first for paper territories
+    if tok.mode == "light":
+        mode_banner = (
+            f"> Light-first project (territory palette_role: {winner.palette_role}). "
+            f"Primary canvas tokens are in §2. Dark tokens below are the *alternate* "
+            f"scheme for `prefers-color-scheme: dark` — not the committed default."
+        )
+        dark_bg, dark_surface, dark_text = tok.alt_background, tok.alt_surface, tok.alt_text
+        dark_muted, dark_border = tok.alt_muted, tok.alt_border
+        light_equiv_note = f"{bg} (primary light)"
+        dark_rules = (
+            "- Primary canvas is **light**; dark tokens activate only under system preference\n"
+            "- Text on dark background must pass WCAG AA (≥ 4.5:1)\n"
+            "- Semantic colors (Success, Danger) remain readable on dark\n"
+            "- Use `prefers-color-scheme: dark` in CSS — no unsolicited JS toggle"
+        )
+        tension_t2 = f"Light paper field / single accent {accent} (≤5% surface)"
+        tokens_extracted = (
+            f"light canvas {bg}, surface {surface}, ink {text}, "
+            f"hairline {border}, accent {accent}, mono captions"
+        )
+        # Primary button: ink on paper
+        btn_primary = (
+            f"fill Text {text}, ink Background {bg}, mono 12px tracking, min-height 44px"
+        )
+        btn_hover = f"Muted fill {muted}"
+        btn_sec = f"transparent, Border {border} hairline, mono label"
+        btn_sec_hover = f"Border Text {text}"
+        card_struct = (
+            f"Surface {surface}, Border {border} hairline — "
+            f"prefer ledger/editorial rows over marketing tiles"
+        )
+    else:
+        mode_banner = (
+            f"> Dark-first project (territory palette_role: {winner.palette_role}). "
+            f"Tokens in §2 are the committed dark contract; light equivalents listed for reverse mapping."
+        )
+        dark_bg, dark_surface, dark_text = bg, surface, text
+        dark_muted, dark_border = muted, border
+        light_equiv_note = tok.alt_background
+        dark_rules = (
+            "- Background must be < `#333` (relative luminance < 9%)\n"
+            "- Text on dark background must pass WCAG AA (≥ 4.5:1)\n"
+            "- Semantic colors (Success, Danger) remain readable on dark\n"
+            "- Use `prefers-color-scheme: dark` in CSS — no unsolicited JS toggle"
+        )
+        tension_t2 = f"Near-black field / single accent {accent} (≤5% surface)"
+        tokens_extracted = (
+            f"dark canvas {bg}, surface {surface}, text {text}, "
+            f"hairline {border}, accent {accent}, mono captions"
+        )
+        btn_primary = (
+            f"fill Text {text}, ink Background {bg}, mono 12px tracking, min-height 44px"
+        )
+        btn_hover = f"Muted fill {muted}"
+        btn_sec = f"transparent, Border {border} hairline, mono label"
+        btn_sec_hover = f"Border Text {text}"
+        card_struct = (
+            f"Surface {surface}, Border {border} hairline — "
+            f"used only if territory allows; prefer ledger rows over marketing tiles"
+        )
+
+    # §8 table: when light-first, Hex column = dark alternate; Light equivalent = primary
+    # when dark-first, Hex = primary dark; Light equivalent = alt light
+    if tok.mode == "light":
+        dm_bg, dm_sf, dm_tx, dm_mt, dm_bd = dark_bg, dark_surface, dark_text, dark_muted, dark_border
+        le_bg, le_sf, le_tx, le_mt, le_bd = bg, surface, text, muted, border
+    else:
+        dm_bg, dm_sf, dm_tx, dm_mt, dm_bd = dark_bg, dark_surface, dark_text, dark_muted, dark_border
+        le_bg, le_sf, le_tx, le_mt, le_bd = (
+            tok.alt_background,
+            tok.alt_surface,
+            tok.alt_text,
+            tok.alt_muted,
+            tok.alt_border,
+        )
 
     return f"""# DESIGN.md — Design Contract
 
 > Compiled by WDE Creative Discovery for **{interp.subject}**.
+> Territory tokens source: `{winner.id}` / {winner.palette_role}
 
 ---
 
@@ -277,9 +371,11 @@ def compile_design_md(
 ### 0a. Visual reference — getdesign / discovery
 - **Brand used**: discovery direction **{winner.name}** (metaphor: {winner.metaphor})
 - **Command executed**: `wde discover` + optional `npx getdesign@latest add <brand>`
-- **Tokens extracted**: pure black canvas, hairline borders, single brass accent, mono captions
+- **Tokens extracted**: {tokens_extracted}
+- **palette_role (winner)**: {winner.palette_role}
+- **mode**: {tok.mode}-first
 - **Receipts / artifacts**: {receipts}
-{_prov("phase0_visual", receipt_paths)}
+{_prov("phase0_visual", receipt_paths + [f"territory:{winner.id}.tokens"])}
 
 ### 0b. Design intelligence — UI/UX Pro Max
 - **Product description**: {interp.subject} / {interp.page_kind}
@@ -296,7 +392,7 @@ def compile_design_md(
 ## 1. Theme & Visual Concept
 
 - **Concept**: {winner.metaphor}
-- **Keywords**: exact, restrained, {winner.name}, hairline, mono labels
+- **Keywords**: exact, restrained, {winner.name}, hairline, mono labels, {tok.mode}-first
 - **UI/UX Pro Max inspiration**: {winner.archetype_hint}
 - **Signature**: {winner.signature_move}
 - **FORBIDDEN**: {"; ".join(anti)}
@@ -307,14 +403,14 @@ def compile_design_md(
 
 | Role | Hex | Usage |
 | :--- | :--- | :--- |
-| Background | #0A0A0A | Main canvas |
-| Surface | #141414 | Panels / ledger rows |
-| Text | #F2F2F2 | Primary type |
-| Muted | #8A8A8A | Captions / secondary |
-| Border | #2A2A2A | Hairlines |
-| Accent | #C4A35A | Single route / status accent |
-| Success | #5FA657 | Confirmations only |
-| Danger | #C44C4C | Errors only |
+| Background | {bg} | Main canvas ({tok.mode}-first) |
+| Surface | {surface} | Panels / ledger rows |
+| Text | {text} | Primary type |
+| Muted | {muted} | Captions / secondary |
+| Border | {border} | Hairlines |
+| Accent | {accent} | Single route / status accent |
+| Success | {success} | Confirmations only |
+| Danger | {danger} | Errors only |
 
 ---
 
@@ -335,23 +431,23 @@ def compile_design_md(
 
 ## 5. Spacing & Grid
 
-- **Grid base**: 8px
+- **Grid base**: {tok.grid_base}
 - **Gutter (columns)**: 16px
 - **Section vertical padding**: 48px
 - **Section horizontal padding**: 24px
-- **Radius**: 0px board / 4px controls
+- **Radius**: {tok.radius_board} board / {tok.radius_control} controls
 - **Structure**: {winner.structure}
 
 ## 6. Components & States
 
 ### Buttons
-- **Primary (Normal)**: fill Text #F2F2F2, ink Background #0A0A0A, mono 12px tracking, min-height 44px
-- **Primary (Hover)**: Muted fill #8A8A8A
-- **Secondary (Normal)**: transparent, Border #2A2A2A hairline, mono label
-- **Secondary (Hover)**: Border Text #F2F2F2
+- **Primary (Normal)**: {btn_primary}
+- **Primary (Hover)**: {btn_hover}
+- **Secondary (Normal)**: {btn_sec}
+- **Secondary (Hover)**: {btn_sec_hover}
 
 ### Cards
-- **Structure**: Surface #141414, Border #2A2A2A hairline — used only if territory allows; prefer ledger rows over marketing tiles
+- **Structure**: {card_struct}
 - **Inner padding**: 16px
 - **Shadow**: none
 
@@ -370,26 +466,24 @@ def compile_design_md(
 - **Interactions (Hover/Click)**: 150ms ease-in-out
 - **Accessibility**: `prefers-reduced-motion` mandatory — disable non-essential motion when set
 - **Scroll cue**: subtle hairline fade under hero (not a bouncing chevron spam)
+- **Motion dial**: {winner.motion_level}/10 (territory)
 
 ## 8. Dark Mode
 
-> Dark-first project. Tokens below are the committed dark contract.
+{mode_banner}
 
 | Role | Hex | Light equivalent |
 | :--- | :--- | :--- |
-| Background | #0A0A0A | #F6F1E8 |
-| Surface | #141414 | #EFE8DC |
-| Text | #F2F2F2 | #1A1A1A |
-| Secondary text | #8A8A8A | #666666 |
-| Border | #2A2A2A | #D4CBB8 |
-| Primary (unchanged) | #C4A35A | #C4A35A |
-| Dark accent | #C4A35A | #8B6914 |
+| Background | {dm_bg} | {le_bg} |
+| Surface | {dm_sf} | {le_sf} |
+| Text | {dm_tx} | {le_tx} |
+| Secondary text | {dm_mt} | {le_mt} |
+| Border | {dm_bd} | {le_bd} |
+| Primary (unchanged) | {accent} | {accent} |
+| Dark accent | {accent} | {accent} |
 
 **Dark mode rules:**
-- Background must be < `#333` (relative luminance < 9%)
-- Text on dark background must pass WCAG AA (≥ 4.5:1)
-- Semantic colors (Success, Danger) remain readable on dark
-- Use `prefers-color-scheme: dark` in CSS — no unsolicited JS toggle
+{dark_rules}
 
 ## 11. Signature Gesture
 
@@ -401,7 +495,7 @@ def compile_design_md(
 ## 12. Intentional Tensions
 
 - **T1**: Monumental display type / dense mono captions
-- **T2**: Near-black field / single brass accent (≤5% surface)
+- **T2**: {tension_t2}
 - **T3**: {winner.metaphor} structure vs generic marketing section stacks
 """
 

@@ -456,13 +456,22 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser(
         "run",
         parents=[common],
-        help="Run a check profile: static | mechanical | browser | deliver | full",
+        help="Run a check profile: static | mechanical | browser | discovery | deliver | full",
     )
     s.add_argument(
         "profile",
         nargs="?",
         default="static",
-        choices=["static", "mechanical", "browser", "visual", "wow", "deliver", "full"],
+        choices=[
+            "static",
+            "mechanical",
+            "browser",
+            "visual",
+            "wow",
+            "discovery",
+            "deliver",
+            "full",
+        ],
     )
     s.add_argument("--url", default=None, help="Override project.local_url (browser checks)")
     s.add_argument("--json", action="store_true")

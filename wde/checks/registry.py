@@ -39,6 +39,7 @@ class CheckRegistry:
                 "beauty.score",
                 "gestures.archetype",
                 "design.diff",
+                "discovery.traces",
             ],
             "mechanical": [
                 "slop.static",
@@ -48,7 +49,9 @@ class CheckRegistry:
                 "beauty.score",
                 "gestures.archetype",
                 "design.diff",
+                "discovery.traces",
             ],
+            "discovery": ["discovery.traces"],
             "browser": ["layout.browser", "visual.audit"],
             "visual": ["visual.audit", "layout.browser", "visual.aesthetic"],
             "wow": ["wow.excess", "gestures.archetype", "beauty.score"],
@@ -68,6 +71,7 @@ class CheckRegistry:
                 "beauty.score",
                 "gestures.archetype",
                 "design.diff",
+                "discovery.traces",
                 "wow.excess",
                 "domains.bundle",
                 "layout.browser",
@@ -97,6 +101,7 @@ def default_registry() -> CheckRegistry:
     from wde.checks.static.design_diff import DesignDiffStaticCheck
     from wde.checks.static.domains_bundle import DomainsBundleCheck
     from wde.checks.static.gestures import GesturesStaticCheck
+    from wde.checks.static.discovery_traces import DiscoveryTracesCheck
     from wde.checks.static.slop import SlopStaticCheck
     from wde.checks.static.spacing import SpacingStaticCheck
     from wde.checks.static.uniqueness import UniquenessStaticCheck
@@ -112,6 +117,7 @@ def default_registry() -> CheckRegistry:
         BeautyStaticCheck(),
         GesturesStaticCheck(),
         DesignDiffStaticCheck(),
+        DiscoveryTracesCheck(),
         WowStaticCheck(),
         DomainsBundleCheck(),
         LayoutBrowserCheck(),

@@ -10,8 +10,11 @@ from pathlib import Path
 from typing import Any
 
 from wde.discovery.interpret import Interpretation
-from wde.discovery.receipts import ResearchReceipt, research_dir, write_receipt
+from wde.discovery.receipts import ResearchReceipt, request_hash, research_dir, write_receipt
 from wde.runners.subprocess_runner import run_python_script, scripts_dir
+
+# Threaded request hash for receipt invalidation (set by run_all_research)
+_ACTIVE_REQUEST_HASH = ""
 
 
 def _write_text_artifact(root: Path, name: str, text: str) -> Path:
@@ -20,6 +23,25 @@ def _write_text_artifact(root: Path, name: str, text: str) -> Path:
     path = d / name
     path.write_text(text, encoding="utf-8")
     return path
+
+
+def _stamp(
+    receipt: ResearchReceipt,
+    *,
+    source_type: str,
+    network_used: bool = False,
+    command: str = "",
+    exit_code: int | None = None,
+    degraded: bool = False,
+) -> ResearchReceipt:
+    receipt.source_type = source_type
+    receipt.network_used = network_used
+    receipt.executor = "wde-core"
+    receipt.degraded = degraded
+    receipt.request_hash = _ACTIVE_REQUEST_HASH
+    receipt.command = command
+    receipt.exit_code = exit_code
+    return receipt
 
 
 def _receipt_from_write(
@@ -62,6 +84,7 @@ def run_sector_research(root: Path, interp: Interpretation) -> ResearchReceipt:
         notes="Sector framing from interpretation hypotheses",
         details=body,
     )
+    _stamp(rec, source_type="internal_knowledge", network_used=False, command="sector_notes")
     return _receipt_from_write(root, rec, artifact_text=text)
 
 
@@ -96,6 +119,7 @@ def run_anti_reference_research(root: Path, interp: Interpretation) -> ResearchR
         notes="Anti-reference list for distinction scoring",
         details=body,
     )
+    _stamp(rec, source_type="internal_knowledge", network_used=False, command="anti_reference")
     return _receipt_from_write(root, rec, artifact_text=text)
 
 
@@ -113,6 +137,7 @@ def run_cross_domain_research(root: Path, interp: Interpretation) -> ResearchRec
         "path_kind": "cross_domain",
         "query": query,
         "steals": items,
+        "moves": items,
         "instruction": "Steal ONE move, not the whole aesthetic",
     }
     text = json.dumps(body, indent=2, ensure_ascii=False)
@@ -128,6 +153,13 @@ def run_cross_domain_research(root: Path, interp: Interpretation) -> ResearchRec
         retained=items[:2],
         notes="Cross-domain steal candidates",
         details=body,
+    )
+    # Local knowledge for now — not live web
+    _stamp(
+        rec,
+        source_type="internal_knowledge",
+        network_used=False,
+        command="cross_domain_local",
     )
     return _receipt_from_write(root, rec, artifact_text=text)
 
@@ -145,6 +177,13 @@ def run_promax_search(root: Path, interp: Interpretation) -> ResearchReceipt:
             status="skipped",
             result_count=0,
             notes=f"search.py not found at {script}",
+        )
+        _stamp(
+            rec,
+            source_type="local_corpus",
+            network_used=False,
+            command="search.py",
+            degraded=True,
         )
         return _receipt_from_write(root, rec)
 
@@ -194,6 +233,14 @@ def run_promax_search(root: Path, interp: Interpretation) -> ResearchReceipt:
         notes=(res.stderr or "")[:500] or ("Pro Max persist OK" if success else f"rc={res.returncode}"),
         details={"returncode": res.returncode, "stdout_head": (res.stdout or "")[:500]},
     )
+    _stamp(
+        rec,
+        source_type="local_corpus",
+        network_used=False,
+        command="python scripts/search.py --persist",
+        exit_code=res.returncode,
+        degraded=not success,
+    )
     return _receipt_from_write(root, rec, artifact_text=snippet)
 
 
@@ -208,6 +255,13 @@ def run_getdesign(root: Path, brand: str = "bugatti") -> ResearchReceipt:
             query=query,
             status="skipped",
             notes="npx not on PATH",
+        )
+        _stamp(
+            rec,
+            source_type="external_cli",
+            network_used=True,
+            command="npx getdesign@latest add",
+            degraded=True,
         )
         return _receipt_from_write(root, rec)
 
@@ -228,6 +282,13 @@ def run_getdesign(root: Path, brand: str = "bugatti") -> ResearchReceipt:
             query=query,
             status="failed",
             notes=str(e)[:500],
+        )
+        _stamp(
+            rec,
+            source_type="external_cli",
+            network_used=True,
+            command=f"npx getdesign@latest add {brand}",
+            degraded=True,
         )
         return _receipt_from_write(root, rec)
 
@@ -257,6 +318,14 @@ def run_getdesign(root: Path, brand: str = "bugatti") -> ResearchReceipt:
         notes=(proc.stderr or proc.stdout or "")[:400],
         details={"returncode": proc.returncode},
     )
+    _stamp(
+        rec,
+        source_type="external_cli",
+        network_used=True,
+        command=f"npx getdesign@latest add {brand}",
+        exit_code=proc.returncode,
+        degraded=not success,
+    )
     return _receipt_from_write(root, rec, artifact_text=text)
 
 
@@ -268,6 +337,9 @@ def run_visual_notes(root: Path, interp: Interpretation) -> ResearchReceipt:
         "query": query,
         "type_roles": "display + mono captions",
         "composition": "asymmetric hierarchy, hairlines, one accent",
+        "typography": "display + mono captions",
+        "layout": "asymmetric hierarchy, hairlines, one accent",
+        "image": "tactile stills preferred over stock smiles",
         "motion": "restrained unless territory demands otherwise",
     }
     text = json.dumps(body, indent=2, ensure_ascii=False)
@@ -284,6 +356,7 @@ def run_visual_notes(root: Path, interp: Interpretation) -> ResearchReceipt:
         notes="Visual framing notes",
         details=body,
     )
+    _stamp(rec, source_type="internal_knowledge", network_used=False, command="visual_notes")
     return _receipt_from_write(root, rec, artifact_text=text)
 
 
@@ -294,6 +367,8 @@ def run_all_research(
     try_getdesign: bool = True,
 ) -> list[ResearchReceipt]:
     """Run all research paths; always returns receipts."""
+    global _ACTIVE_REQUEST_HASH
+    _ACTIVE_REQUEST_HASH = request_hash(interp.raw_request)
     receipts: list[ResearchReceipt] = []
     receipts.append(run_sector_research(root, interp))
     receipts.append(run_visual_notes(root, interp))

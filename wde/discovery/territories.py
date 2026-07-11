@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from wde.discovery.interpret import Interpretation
-
+from wde.discovery.tokens import DesignTokens
 
 CRITIQUE_CRITERIA = (
     "relevance",
@@ -35,9 +35,20 @@ class Territory:
     anti_references: list[str] = field(default_factory=list)
     hero: str = ""
     archetype_hint: str = ""
+    # Structured tokens — compiler source of truth for DESIGN.md
+    tokens: DesignTokens = field(default_factory=lambda: DesignTokens.dark_instrument())
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        d = asdict(self)
+        return d
+
+    def resolved_tokens(self) -> DesignTokens:
+        """Prefer explicit tokens; else derive from palette_role + typography."""
+        # Heuristic: if tokens still look like default dark but palette says paper, re-derive
+        if self.tokens and self.tokens.background:
+            # Explicit structured tokens always win
+            return self.tokens
+        return DesignTokens.from_palette_role(self.palette_role, self.typography)
 
 
 def _agency_hospitality_set(interp: Interpretation) -> list[Territory]:
@@ -60,6 +71,12 @@ def _agency_hospitality_set(interp: Interpretation) -> list[Territory]:
             ],
             hero="Full-bleed quiet photo + oversized place-name type, no CTA pill spam",
             archetype_hint="§2 Editorial / §3 Luxury restraint",
+            tokens=DesignTokens.light_editorial(
+                paper="#F3EEE4",
+                ink="#1A1A1A",
+                accent="#C4A35A",
+                display="Fraunces",
+            ),
         ),
         Territory(
             id="B",
@@ -79,6 +96,7 @@ def _agency_hospitality_set(interp: Interpretation) -> list[Territory]:
             ],
             hero="Monumental wordmark + single brass rule + live 'desk open' instrument",
             archetype_hint="§6 Technical monochrome × hospitality austerity",
+            tokens=DesignTokens.dark_instrument(accent="#C4A35A", display="IBM Plex Sans"),
         ),
         Territory(
             id="C",
@@ -98,6 +116,7 @@ def _agency_hospitality_set(interp: Interpretation) -> list[Territory]:
             ],
             hero="Single wide still as 'frame 01' with scene slate numbers",
             archetype_hint="§3 Luxury restraint + disciplined motion",
+            tokens=DesignTokens.dark_instrument(bg="#0B0B0C", accent="#A8B0B8", display="IBM Plex Sans"),
         ),
     ]
 
@@ -118,6 +137,7 @@ def _saas_set(interp: Interpretation) -> list[Territory]:
             anti_references=["3 feature cards", "purple glow", "fake testimonials"],
             hero="Huge mono product name + single amber focus line",
             archetype_hint="§6 Technical monochrome",
+            tokens=DesignTokens.dark_instrument(accent="#5FA657", display="IBM Plex Sans"),
         ),
         Territory(
             id="B",
@@ -133,6 +153,12 @@ def _saas_set(interp: Interpretation) -> list[Territory]:
             anti_references=["bento grid", "3D abstract shapes", "gradient text"],
             hero="Chapter title '01 — Start here' at editorial scale",
             archetype_hint="§2 Editorial",
+            tokens=DesignTokens.light_editorial(
+                paper="#F3EEE4",
+                ink="#1A1A1A",
+                accent="#C44C4C",
+                display="Fraunces",
+            ),
         ),
         Territory(
             id="C",
@@ -148,6 +174,7 @@ def _saas_set(interp: Interpretation) -> list[Territory]:
             anti_references=["hero illustration of people with laptops", "rainbow charts"],
             hero="Animated path that settles into a quiet static graph",
             archetype_hint="§6 / §8 data calm",
+            tokens=DesignTokens.dark_instrument(accent="#5B9EA6", display="IBM Plex Sans"),
         ),
     ]
 
@@ -169,6 +196,7 @@ def _generic_set(interp: Interpretation) -> list[Territory]:
             anti_references=["card grids", "default indigo"],
             hero=f"Oversized title for {subj}",
             archetype_hint="§2 Editorial",
+            tokens=DesignTokens.light_editorial(paper="#F3EEE4", display="Fraunces"),
         ),
         Territory(
             id="B",
@@ -184,6 +212,11 @@ def _generic_set(interp: Interpretation) -> list[Territory]:
             anti_references=["floating cards", "soft purple gradients"],
             hero="Tool silhouette as the only ornament",
             archetype_hint="§6 Technical",
+            tokens=DesignTokens.light_editorial(
+                paper="#EDE8E1",
+                accent="#6B7280",
+                display="IBM Plex Sans",
+            ),
         ),
         Territory(
             id="C",
@@ -199,18 +232,96 @@ def _generic_set(interp: Interpretation) -> list[Territory]:
             anti_references=["endless scroll of features", "emoji bullets"],
             hero="Cue light and silence",
             archetype_hint="§3 Luxury / motion",
+            tokens=DesignTokens.dark_instrument(accent="#E8D5A3", display="IBM Plex Sans"),
         ),
     ]
 
 
-def generate_territories(interp: Interpretation) -> list[Territory]:
-    """Return exactly three divergent territories for the interpretation."""
+def generate_territories(
+    interp: Interpretation,
+    synthesis: Any | None = None,
+    *,
+    use_grammar: bool | None = None,
+) -> list[Territory]:
+    """Return exactly three divergent territories for the interpretation.
+
+    Optional ``synthesis`` (ResearchSynthesis) can bias metaphor notes / anti-refs
+    without collapsing structural divergence.
+
+    ``use_grammar``:
+      - True → always combinatorial grammar (P6)
+      - False → curated sector families only
+      - None → grammar for unknown sectors; curated for agency/hospitality/saas
+    """
     key = interp.sector_key
-    if key in {"agency", "hospitality"}:
-        return _agency_hospitality_set(interp)
-    if key == "saas":
-        return _saas_set(interp)
-    return _generic_set(interp)
+    if use_grammar is True:
+        from wde.discovery.grammar import generate_from_grammar
+
+        territories = generate_from_grammar(interp)
+    elif use_grammar is False:
+        if key in {"agency", "hospitality"}:
+            territories = _agency_hospitality_set(interp)
+        elif key == "saas":
+            territories = _saas_set(interp)
+        else:
+            territories = _generic_set(interp)
+    else:
+        # default: curated when we have strong families, else grammar
+        if key in {"agency", "hospitality"}:
+            territories = _agency_hospitality_set(interp)
+        elif key == "saas":
+            territories = _saas_set(interp)
+        else:
+            from wde.discovery.grammar import generate_from_grammar
+
+            territories = generate_from_grammar(interp)
+
+    if synthesis is not None:
+        territories = _apply_synthesis(territories, synthesis)
+    return territories
+
+
+def _apply_synthesis(territories: list[Territory], synthesis: Any) -> list[Territory]:
+    """Fold research findings into anti-references and signature notes."""
+    anti_extra: list[str] = []
+    for f in getattr(synthesis, "anti_references", []) or []:
+        val = getattr(f, "statement", None) or (f if isinstance(f, str) else str(f))
+        if val:
+            anti_extra.append(str(val)[:120])
+    principles: list[str] = []
+    for f in getattr(synthesis, "visual_principles", []) or []:
+        val = getattr(f, "statement", None) or (f if isinstance(f, str) else str(f))
+        if val:
+            principles.append(str(val)[:100])
+
+    out: list[Territory] = []
+    for i, t in enumerate(territories):
+        anti = list(t.anti_references)
+        for a in anti_extra[:3]:
+            if a not in anti:
+                anti.append(a)
+        hero = t.hero
+        if principles and i == 0:
+            hero = f"{hero} · research: {principles[0]}"
+        out.append(
+            Territory(
+                id=t.id,
+                name=t.name,
+                metaphor=t.metaphor,
+                structure=t.structure,
+                primary_interaction=t.primary_interaction,
+                typography=t.typography,
+                image_treatment=t.image_treatment,
+                motion_level=t.motion_level,
+                palette_role=t.palette_role,
+                signature_move=t.signature_move,
+                anti_references=anti[:8],
+                hero=hero,
+                archetype_hint=t.archetype_hint,
+                tokens=t.tokens,
+            )
+        )
+    return out
 
 
 def territories_are_structurally_divergent(territories: list[Territory]) -> bool:

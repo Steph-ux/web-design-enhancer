@@ -1,5 +1,52 @@
 # Changelog
 
+## V3.0.0a2 — Creative Discovery closed loop (tokens, synthesis, traces, grammar)
+
+### Fixed
+- **Territory → DESIGN.md contradiction**: light editorial winners (e.g. paper ivory
+  `#F3EEE4`) no longer compile a global dark-first palette. `compile_design_md`
+  emits structured `DesignTokens` from the selected territory only.
+- Regression: `test_light_editorial_territory_does_not_compile_dark_first`.
+
+### Added — discovery research consumption
+- `ResearchSynthesis` / `Finding` (`wde/discovery/synthesis.py`).
+- Pipeline: `receipts → synthesize → territories(synthesis) → select → contracts`.
+- Coverage report: `.wde/research/research-coverage.txt` (internal vs external,
+  confidence, degraded mode).
+
+### Added — receipt integrity
+- Fields: `source_type`, `network_used`, `executor`, `degraded`, `request_hash`,
+  `command`, `exit_code`, `artifact_sha256`, `sealed`.
+- `receipt_is_valid` rejects unauthorized executors and tampered artifacts.
+- `invalidate_receipts_for_request` when the discovery request hash changes.
+
+### Added — decision graph
+- `.wde/discovery/decision-graph.json`:
+  `source → principle → transformation → contract → code → render`.
+
+### Added — closed-loop traces (P5)
+- `contract_trace` / `code_trace` / `render_trace` in `wde/discovery/traces.py`.
+- Playwright probe (`run_discovery_render_probe`): signature visible desktop+mobile,
+  interaction, captures under `.wde/discovery/render/`.
+- Check id `discovery.traces` (profiles: static, mechanical, discovery, full).
+
+### Added — territory grammar (P6)
+- `wde/discovery/grammar.py`: metaphor × structure × signature × type × materiality
+  × image × motion × conversion with compatibility + structural distance.
+- `generate_territories(..., use_grammar=True)` for combinatorial diversity.
+- Anti-universal Bugatti metaphor; diversity tests across 20 sectors.
+
+### Tests
+- `tests/unit/test_discovery_territory_tokens.py`
+- `tests/unit/test_discovery_traces_and_grammar.py`
+- `tests/unit/test_discovery_exploitation_coherence.py`
+- Full discovery unit suite: **36+** cases (Playwright path skips if unavailable).
+
+### Docs
+- `docs/V3.md` — full Creative Discovery pipeline, artifacts, and commands.
+
+---
+
 ## V3.0.0a1 — evidence-driven orchestrator (alpha)
 
 **Principle:** the model proposes and implements; the orchestrator authorizes, verifies, and blocks.

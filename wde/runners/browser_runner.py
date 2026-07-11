@@ -59,3 +59,141 @@ def run_visual_audit(
         "report": report,
         "ok": res.returncode == 0 and report_path.is_file(),
     }
+
+
+def run_discovery_render_probe(
+    *,
+    root: Path,
+    target: str,
+    signature_id: str = "",
+    out_dir: Path | None = None,
+) -> dict[str, Any]:
+    """Playwright probe for discovery.render_trace.
+
+    Checks:
+      - signature marker exists and is visible at desktop
+      - optional interaction (click / hover) does not throw
+      - signature still visible at mobile width
+      - screenshots written under .wde/discovery/render/
+
+    ``target`` may be a URL (http…) or a filesystem path to an HTML file.
+    Returns structured result; never raises to callers.
+    """
+    out = out_dir or (root / ".wde" / "discovery" / "render")
+    out.mkdir(parents=True, exist_ok=True)
+    result: dict[str, Any] = {
+        "ok": False,
+        "playwright": False,
+        "signature_visible_desktop": False,
+        "signature_visible_mobile": False,
+        "interaction_ok": False,
+        "captures": [],
+        "error": "",
+        "target": target,
+    }
+
+    try:
+        from playwright.sync_api import sync_playwright  # type: ignore
+    except ImportError:
+        result["error"] = "playwright not installed"
+        return result
+
+    # Resolve file:// for local HTML
+    nav = target
+    if not target.startswith("http://") and not target.startswith("https://"):
+        p = Path(target)
+        if not p.is_absolute():
+            p = (root / target).resolve()
+        if not p.is_file():
+            result["error"] = f"HTML not found: {p}"
+            return result
+        nav = p.as_uri()
+
+    try:
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(headless=True)
+            try:
+                page = browser.new_page(viewport={"width": 1280, "height": 800})
+                page.goto(nav, wait_until="domcontentloaded", timeout=15000)
+                result["playwright"] = True
+
+                # Signature selectors
+                selectors = []
+                if signature_id:
+                    selectors.extend(
+                        [
+                            f".{signature_id}",
+                            f"#{signature_id}",
+                            f"[data-signature]",
+                            f"[data-wde-signature='{signature_id}']",
+                            f"[class*='signature']",
+                        ]
+                    )
+                else:
+                    selectors.append("[data-signature]")
+
+                loc = None
+                for sel in selectors:
+                    try:
+                        candidate = page.locator(sel).first
+                        if candidate.count() > 0:
+                            loc = candidate
+                            break
+                    except Exception:  # noqa: BLE001
+                        continue
+
+                if loc is not None:
+                    try:
+                        result["signature_visible_desktop"] = bool(loc.is_visible())
+                    except Exception:  # noqa: BLE001
+                        result["signature_visible_desktop"] = False
+
+                    # Interaction: click / hover if possible
+                    try:
+                        loc.hover(timeout=2000)
+                        loc.click(timeout=2000, force=True)
+                        result["interaction_ok"] = True
+                    except Exception:  # noqa: BLE001
+                        # hover-only is enough
+                        try:
+                            loc.hover(timeout=2000)
+                            result["interaction_ok"] = True
+                        except Exception as e:  # noqa: BLE001
+                            result["interaction_ok"] = False
+                            result["error"] = f"interaction: {e}"[:200]
+                else:
+                    result["error"] = "signature selector not found"
+
+                desk = out / "desktop-1280.png"
+                page.screenshot(path=str(desk), full_page=True)
+                result["captures"].append(str(desk.relative_to(root)).replace("\\", "/"))
+
+                # Mobile survival
+                page.set_viewport_size({"width": 375, "height": 812})
+                page.wait_for_timeout(200)
+                if loc is not None:
+                    try:
+                        result["signature_visible_mobile"] = bool(loc.is_visible())
+                    except Exception:  # noqa: BLE001
+                        result["signature_visible_mobile"] = False
+
+                mob = out / "mobile-375.png"
+                page.screenshot(path=str(mob), full_page=True)
+                result["captures"].append(str(mob.relative_to(root)).replace("\\", "/"))
+
+                result["ok"] = (
+                    result["signature_visible_desktop"]
+                    and result["signature_visible_mobile"]
+                    and len(result["captures"]) >= 2
+                )
+            finally:
+                browser.close()
+    except Exception as e:  # noqa: BLE001
+        result["error"] = str(e)[:400]
+        result["ok"] = False
+
+    # Persist machine-readable probe
+    probe_path = out / "probe.json"
+    probe_path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    result["probe_path"] = str(probe_path.relative_to(root)).replace("\\", "/")
+    return result

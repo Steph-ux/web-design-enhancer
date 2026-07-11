@@ -8,16 +8,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from wde.core.project_context import ProjectContext, init_project
 from wde.discovery.compile import write_contracts
 from wde.discovery.critic import select_territory
-from wde.discovery.interpret import Interpretation, interpret_request
+from wde.discovery.decision_graph import build_decision_graph, write_decision_graph
+from wde.discovery.interpret import interpret_request
 from wde.discovery.receipts import research_dir
 from wde.discovery.research_runner import run_all_research
+from wde.discovery.synthesis import synthesize_research, write_synthesis
 from wde.discovery.territories import (
     generate_territories,
     territories_are_structurally_divergent,
 )
-from wde.core.project_context import ProjectContext, init_project
+from wde.discovery.traces import run_all_traces
 
 
 @dataclass
@@ -30,6 +33,10 @@ class DiscoveryResult:
     contracts: dict[str, str] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
     artifact_dir: str = ""
+    synthesis: dict[str, Any] = field(default_factory=dict)
+    coverage_report: str = ""
+    decision_graph: str = ""
+    traces: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -43,7 +50,7 @@ def run_discovery(
     try_getdesign: bool = True,
 ) -> DiscoveryResult:
     """
-    interpret → research receipts → 3 territories → select → compile contracts.
+    interpret → research receipts → synthesize → 3 territories → select → compile contracts.
     """
     root = root.resolve()
     errors: list[str] = []
@@ -69,10 +76,10 @@ def run_discovery(
         encoding="utf-8",
     )
 
+    # ── Research ──────────────────────────────────────────────────────────
     receipts = run_all_research(root, interp, try_getdesign=try_getdesign)
     receipt_paths: list[str] = []
     for r in receipts:
-        # find file on disk by path_kind
         for p in research_dir(root).glob(f"{r.path_kind}-*.json"):
             rel = str(p.relative_to(root)).replace("\\", "/")
             if rel not in receipt_paths:
@@ -80,10 +87,15 @@ def run_discovery(
         if r.artifact and r.artifact not in receipt_paths:
             receipt_paths.append(r.artifact)
 
-    # Also list all receipt jsons
     for p in sorted(research_dir(root).glob("*.json")):
         rel = str(p.relative_to(root)).replace("\\", "/")
-        if rel not in receipt_paths and p.name != "interpretation.json":
+        if rel not in receipt_paths and p.name not in {
+            "interpretation.json",
+            "territories.json",
+            "discovery-manifest.json",
+            "research-synthesis.json",
+            "decision-graph.json",
+        }:
             if "receipt" in p.name or any(
                 k in p.name
                 for k in (
@@ -97,11 +109,21 @@ def run_discovery(
             ):
                 receipt_paths.append(rel)
 
-    territories = generate_territories(interp)
+    # ── Synthesize (consume tool results as design inputs) ────────────────
+    synthesis = synthesize_research(receipts)
+    synth_path = write_synthesis(root, synthesis)
+    coverage_report = synthesis.coverage_report()
+
+    if synthesis.degraded_mode:
+        # Not a hard failure — internal paths still produce contracts
+        pass
+
+    # ── Territories (biased by synthesis) ─────────────────────────────────
+    territories = generate_territories(interp, synthesis)
     if not territories_are_structurally_divergent(territories):
         errors.append("territories are not structurally divergent")
 
-    selection = select_territory(territories, interp)
+    selection = select_territory(territories, interp, synthesis)
     winner = next(t for t in territories if t.id == selection.winner_id)
 
     # Persist territories + selection
@@ -112,6 +134,7 @@ def run_discovery(
                 "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "territories": [t.to_dict() for t in territories],
                 "selection": selection.to_dict(),
+                "synthesis_confidence": synthesis.confidence,
             },
             indent=2,
             ensure_ascii=False,
@@ -120,7 +143,33 @@ def run_discovery(
         encoding="utf-8",
     )
 
+    # ── Compile contracts from winner tokens ──────────────────────────────
     contracts = write_contracts(root, interp, winner, selection, receipt_paths)
+
+    # Guard: light territory must not compile Dark-first global palette
+    design_text = (root / "DESIGN.md").read_text(encoding="utf-8", errors="replace")
+    tok = winner.resolved_tokens()
+    if tok.mode == "light":
+        if "Dark-first project" in design_text and "Light-first project" not in design_text:
+            errors.append("light territory compiled Dark-first DESIGN.md (token contradiction)")
+        if tok.background not in design_text:
+            errors.append(
+                f"winner background token {tok.background} missing from DESIGN.md"
+            )
+    elif tok.mode == "dark":
+        if tok.background not in design_text:
+            errors.append(f"winner background token {tok.background} missing from DESIGN.md")
+
+    # ── Decision graph ────────────────────────────────────────────────────
+    graph = build_decision_graph(interp, synthesis, winner, selection, receipt_paths)
+    graph_path = write_decision_graph(root, graph)
+
+    # ── P5 traces (contract always; code/render soft until implement) ─────
+    traces_payload = run_all_traces(root, require_browser=False)
+    # contract_trace failure is blocking for discovery quality
+    ct = (traces_payload.get("traces") or {}).get("contract_trace") or {}
+    if traces_payload.get("ok") is False and ct.get("ok") is False:
+        errors.append("discovery.contract_trace failed — see .wde/discovery/traces.json")
 
     # Success receipts required: at least one success among research
     success_n = sum(1 for r in receipts if r.status == "success")
@@ -150,8 +199,13 @@ def run_discovery(
         "request": request,
         "interpretation": str(interp_path.relative_to(root)).replace("\\", "/"),
         "receipts": receipt_paths,
+        "synthesis": str(synth_path.relative_to(root)).replace("\\", "/"),
+        "coverage_report": coverage_report,
+        "decision_graph": str(graph_path.relative_to(root)).replace("\\", "/"),
+        "traces": ".wde/discovery/traces.json",
         "territories": str(terr_path.relative_to(root)).replace("\\", "/"),
         "contracts": contracts,
+        "winner_tokens": tok.to_dict(),
         "errors": errors,
         "completed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
@@ -167,4 +221,8 @@ def run_discovery(
         contracts=contracts,
         errors=errors,
         artifact_dir=str(research_dir(root).relative_to(root)).replace("\\", "/"),
+        synthesis=synthesis.to_dict(),
+        coverage_report=coverage_report,
+        decision_graph=str(graph_path.relative_to(root)).replace("\\", "/"),
+        traces=traces_payload,
     )

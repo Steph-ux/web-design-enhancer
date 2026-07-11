@@ -8,6 +8,8 @@ from typing import Any
 from wde.discovery.interpret import Interpretation
 from wde.discovery.territories import CRITIQUE_CRITERIA, Territory
 
+# ResearchSynthesis is optional at runtime to avoid circular imports
+
 
 @dataclass
 class TerritoryScore:
@@ -133,9 +135,21 @@ def _score_one(t: Territory, interp: Interpretation) -> TerritoryScore:
 def select_territory(
     territories: list[Territory],
     interp: Interpretation,
+    synthesis: Any | None = None,
 ) -> SelectionResult:
     """Pick a single winner by total score; never merge all three."""
     scored = [_score_one(t, interp) for t in territories]
+    # Small bias from research synthesis (anti-refs already on territory)
+    if synthesis is not None:
+        conf = getattr(synthesis, "confidence", "") or ""
+        for sc in scored:
+            if conf == "high":
+                sc.total += 1
+            # prefer territories that already absorbed anti-refs
+            t = next(x for x in territories if x.id == sc.territory_id)
+            if len(t.anti_references) >= 4:
+                sc.total += 1
+                sc.notes["research"] = "anti-refs from synthesis"
     scored.sort(key=lambda x: (-x.total, x.territory_id))
     winner_score = scored[0]
     winner = next(t for t in territories if t.id == winner_score.territory_id)
@@ -144,6 +158,8 @@ def select_territory(
         f"Selected « {winner.name} » ({winner.id}) with total {winner_score.total}/80. "
         f"Highest distinction+signature+sobriety under feasibility. "
     )
+    if synthesis is not None:
+        rationale += f"Research confidence={getattr(synthesis, 'confidence', 'n/a')}. "
     if runner:
         rationale += (
             f"Rejected mashup with « {runner.territory_id} » "
