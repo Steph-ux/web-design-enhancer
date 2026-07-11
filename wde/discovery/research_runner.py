@@ -10,7 +10,13 @@ from pathlib import Path
 from typing import Any
 
 from wde.discovery.interpret import Interpretation
-from wde.discovery.receipts import ResearchReceipt, request_hash, research_dir, write_receipt
+from wde.discovery.receipts import (
+    ResearchReceipt,
+    request_hash,
+    research_dir,
+    write_receipt,
+    write_receipt_from_artifact,
+)
 from wde.runners.subprocess_runner import run_python_script, scripts_dir
 
 # Threaded request hash for receipt invalidation (set by run_all_research)
@@ -49,7 +55,11 @@ def _receipt_from_write(
     receipt: ResearchReceipt,
     artifact_text: str = "",
 ) -> ResearchReceipt:
-    write_receipt(root, receipt, artifact_text=artifact_text)
+    """Seal from on-disk artifact when present; never hash truncated stdout as artifact."""
+    if receipt.artifact:
+        write_receipt_from_artifact(root, receipt)
+    else:
+        write_receipt(root, receipt, artifact_text=artifact_text or "")
     return receipt
 
 
@@ -211,15 +221,11 @@ def run_promax_search(root: Path, interp: Interpretation) -> ResearchReceipt:
         artifact = str(master[0].relative_to(root)).replace("\\", "/")
         result_count = 1
 
-    # Also copy a snippet into research for digest stability
-    snippet = (res.stdout or "")[:4000]
-    if out_md.is_file():
-        try:
-            snippet = out_md.read_text(encoding="utf-8", errors="replace")[:8000]
-        except OSError:
-            pass
-    art_path = _write_text_artifact(root, "promax-snippet.md", snippet or res.stderr or "empty")
+    # Optional truncated stdout for debugging ONLY (never used as artifact hash)
     if not artifact:
+        # Persist full stdout/stderr to a research file and seal that file
+        log_body = (res.stdout or "") + "\n---stderr---\n" + (res.stderr or "")
+        art_path = _write_text_artifact(root, "promax-run-log.txt", log_body or "empty")
         artifact = str(art_path.relative_to(root)).replace("\\", "/")
 
     rec = ResearchReceipt(
@@ -231,7 +237,11 @@ def run_promax_search(root: Path, interp: Interpretation) -> ResearchReceipt:
         artifact=artifact,
         retained=["design-system-output"] if success else [],
         notes=(res.stderr or "")[:500] or ("Pro Max persist OK" if success else f"rc={res.returncode}"),
-        details={"returncode": res.returncode, "stdout_head": (res.stdout or "")[:500]},
+        details={
+            "returncode": res.returncode,
+            "stdout_head": (res.stdout or "")[:500],
+            "stderr_head": (res.stderr or "")[:500],
+        },
     )
     _stamp(
         rec,
@@ -241,11 +251,62 @@ def run_promax_search(root: Path, interp: Interpretation) -> ResearchReceipt:
         exit_code=res.returncode,
         degraded=not success,
     )
-    return _receipt_from_write(root, rec, artifact_text=snippet)
+    # Seal from exact artifact file (design-system-output.md full content)
+    return _receipt_from_write(root, rec)
 
 
-def run_getdesign(root: Path, brand: str = "bugatti") -> ResearchReceipt:
-    """Optional npx getdesign — may skip without network/npx."""
+def select_getdesign_brands(interp: Interpretation) -> list[str]:
+    """Pick 1–2 contrasting getdesign brands from sector/emotion (not always Bugatti)."""
+    sector = (interp.sector_key or "").lower()
+    emotion = (getattr(interp, "emotion", "") or "").lower()
+    blob = f"{interp.raw_request} {interp.subject} {emotion}".lower()
+
+    # structure ref + materiality/type ref
+    structure = "linear"
+    material = "notion"
+
+    if sector in {"hospitality", "agency"} or any(
+        k in blob for k in ("hotel", "luxury", "hospitalit", "agence", "brand")
+    ):
+        structure = "airbnb" if "warm" in emotion or "welcoming" in emotion else "stripe"
+        material = "editorial" if "editorial" in blob or "print" in blob else "linear"
+        # austere ledger / dark precision still can use a monochrome brand
+        if any(k in blob for k in ("ledger", "auster", "mono", "instrument")):
+            material = "vercel"
+    elif sector == "saas" or any(k in blob for k in ("api", "saas", "dashboard", "b2b")):
+        structure = "stripe"
+        material = "linear"
+    elif any(k in blob for k in ("portfolio", "designer", "studio")):
+        structure = "framer"
+        material = "editorial"
+    elif any(k in blob for k in ("shop", "store", "retail", "ecom")):
+        structure = "shopify"
+        material = "airbnb"
+    else:
+        structure = "notion"
+        material = "linear"
+
+    # Never hard-default Bugatti as the only brand; allow only when motion/luxury asked
+    brands = [structure]
+    if material != structure:
+        brands.append(material)
+    if any(k in blob for k in ("supercar", "hypercar", "automotive chrome")):
+        brands = ["bugatti", structure]
+    # de-dupe preserve order
+    seen: set[str] = set()
+    out: list[str] = []
+    for b in brands:
+        if b not in seen:
+            seen.add(b)
+            out.append(b)
+    return out[:2]
+
+
+def run_getdesign(root: Path, brand: str = "linear") -> ResearchReceipt:
+    """Optional npx getdesign — may skip without network/npx.
+
+    Seals the exact DESIGN.md / getdesign-*.md file, never process stdout.
+    """
     query = f"getdesign add {brand}"
     npx = shutil.which("npx")
     if not npx:
@@ -255,6 +316,7 @@ def run_getdesign(root: Path, brand: str = "bugatti") -> ResearchReceipt:
             query=query,
             status="skipped",
             notes="npx not on PATH",
+            details={"brand": brand, "stdout_head": "", "stderr_head": ""},
         )
         _stamp(
             rec,
@@ -282,6 +344,7 @@ def run_getdesign(root: Path, brand: str = "bugatti") -> ResearchReceipt:
             query=query,
             status="failed",
             notes=str(e)[:500],
+            details={"brand": brand, "stdout_head": "", "stderr_head": str(e)[:500]},
         )
         _stamp(
             rec,
@@ -297,7 +360,9 @@ def run_getdesign(root: Path, brand: str = "bugatti") -> ResearchReceipt:
     success = proc.returncode == 0 and brand_dir.is_file()
     if success:
         try:
-            gd_copy.write_text(brand_dir.read_text(encoding="utf-8", errors="replace"), encoding="utf-8")
+            gd_copy.write_text(
+                brand_dir.read_text(encoding="utf-8", errors="replace"), encoding="utf-8"
+            )
         except OSError:
             pass
     artifact = ""
@@ -305,8 +370,15 @@ def run_getdesign(root: Path, brand: str = "bugatti") -> ResearchReceipt:
         artifact = gd_copy.name
     elif brand_dir.is_file():
         artifact = str(brand_dir.relative_to(root)).replace("\\", "/")
+    elif not success:
+        # Persist run log as the only artifact for the failed/skip record
+        log = _write_text_artifact(
+            root,
+            f"getdesign-{brand}-run-log.txt",
+            (proc.stdout or "") + "\n---stderr---\n" + (proc.stderr or ""),
+        )
+        artifact = str(log.relative_to(root)).replace("\\", "/")
 
-    text = (proc.stdout or "") + "\n" + (proc.stderr or "")
     rec = ResearchReceipt(
         tool="getdesign",
         path_kind="getdesign",
@@ -316,7 +388,12 @@ def run_getdesign(root: Path, brand: str = "bugatti") -> ResearchReceipt:
         artifact=artifact,
         retained=[brand] if success else [],
         notes=(proc.stderr or proc.stdout or "")[:400],
-        details={"returncode": proc.returncode},
+        details={
+            "returncode": proc.returncode,
+            "brand": brand,
+            "stdout_head": (proc.stdout or "")[:500],
+            "stderr_head": (proc.stderr or "")[:500],
+        },
     )
     _stamp(
         rec,
@@ -326,7 +403,8 @@ def run_getdesign(root: Path, brand: str = "bugatti") -> ResearchReceipt:
         exit_code=proc.returncode,
         degraded=not success,
     )
-    return _receipt_from_write(root, rec, artifact_text=text)
+    # Hash exact DESIGN.md copy, never stdout+stderr
+    return _receipt_from_write(root, rec)
 
 
 def run_visual_notes(root: Path, interp: Interpretation) -> ResearchReceipt:
@@ -376,7 +454,7 @@ def run_all_research(
     receipts.append(run_cross_domain_research(root, interp))
     receipts.append(run_promax_search(root, interp))
     if try_getdesign:
-        # brand choice: hospitality/agency → bugatti austerity; else linear-ish skip if fails
-        brand = "bugatti"
-        receipts.append(run_getdesign(root, brand=brand))
+        brands = select_getdesign_brands(interp)
+        for brand in brands:
+            receipts.append(run_getdesign(root, brand=brand))
     return receipts

@@ -13,7 +13,7 @@ from wde.discovery.compile import write_contracts
 from wde.discovery.critic import select_territory
 from wde.discovery.decision_graph import build_decision_graph, write_decision_graph
 from wde.discovery.interpret import interpret_request
-from wde.discovery.receipts import research_dir
+from wde.discovery.receipts import partition_receipts, request_hash, research_dir
 from wde.discovery.research_runner import run_all_research
 from wde.discovery.synthesis import synthesize_research, write_synthesis
 from wde.discovery.territories import (
@@ -77,46 +77,65 @@ def run_discovery(
     )
 
     # ── Research ──────────────────────────────────────────────────────────
-    receipts = run_all_research(root, interp, try_getdesign=try_getdesign)
+    run_all_research(root, interp, try_getdesign=try_getdesign)
+
+    # ── Reload + validate receipts from disk before any consumption ─────
+    req_h = request_hash(request)
+    parts = partition_receipts(root, expected_request_hash=req_h)
+    valid_receipts = parts["valid_receipts"]
+    invalid_receipts = parts["invalid_receipts"]
+    unavailable = parts["unavailable_tools"]
+
+    # Persist validation partition for audit
+    val_path = research_dir(root) / "receipt-validation.json"
+    val_path.write_text(
+        json.dumps(
+            {
+                "request_hash": req_h,
+                "valid": len(valid_receipts),
+                "invalid": len(invalid_receipts),
+                "unavailable": len(unavailable),
+                "invalid_paths": [r.get("_path") for r in invalid_receipts],
+                "unavailable_tools": [
+                    f"{r.get('tool')}:{r.get('path_kind')}:{r.get('status')}"
+                    for r in unavailable
+                ],
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    if invalid_receipts:
+        errors.append(
+            f"{len(invalid_receipts)} invalid receipt(s) rejected before synthesis"
+        )
+
     receipt_paths: list[str] = []
-    for r in receipts:
-        for p in research_dir(root).glob(f"{r.path_kind}-*.json"):
-            rel = str(p.relative_to(root)).replace("\\", "/")
-            if rel not in receipt_paths:
-                receipt_paths.append(rel)
-        if r.artifact and r.artifact not in receipt_paths:
-            receipt_paths.append(r.artifact)
+    for r in valid_receipts + unavailable:
+        if r.get("_path") and r["_path"] not in receipt_paths:
+            receipt_paths.append(r["_path"])
+        if r.get("artifact") and r["artifact"] not in receipt_paths:
+            receipt_paths.append(r["artifact"])
 
-    for p in sorted(research_dir(root).glob("*.json")):
-        rel = str(p.relative_to(root)).replace("\\", "/")
-        if rel not in receipt_paths and p.name not in {
-            "interpretation.json",
-            "territories.json",
-            "discovery-manifest.json",
-            "research-synthesis.json",
-            "decision-graph.json",
-        }:
-            if "receipt" in p.name or any(
-                k in p.name
-                for k in (
-                    "sector",
-                    "visual",
-                    "anti",
-                    "cross",
-                    "promax",
-                    "getdesign",
-                )
-            ):
-                receipt_paths.append(rel)
-
-    # ── Synthesize (consume tool results as design inputs) ────────────────
-    synthesis = synthesize_research(receipts)
+    # ── Synthesize ONLY valid receipts (never forged / tampered) ────────
+    synthesis = synthesize_research(valid_receipts + unavailable)
+    # External success only from valid external receipts
+    ext_ok = [
+        r
+        for r in valid_receipts
+        if r.get("status") == "success"
+        and (
+            r.get("source_type") in {"external_cli", "live_web"}
+            or r.get("network_used") is True
+        )
+    ]
+    if not ext_ok:
+        synthesis.degraded_mode = True
+        if synthesis.confidence == "high":
+            synthesis.confidence = "limited"
     synth_path = write_synthesis(root, synthesis)
     coverage_report = synthesis.coverage_report()
-
-    if synthesis.degraded_mode:
-        # Not a hard failure — internal paths still produce contracts
-        pass
 
     # ── Territories (biased by synthesis) ─────────────────────────────────
     territories = generate_territories(interp, synthesis)
@@ -171,10 +190,10 @@ def run_discovery(
     if traces_payload.get("ok") is False and ct.get("ok") is False:
         errors.append("discovery.contract_trace failed — see .wde/discovery/traces.json")
 
-    # Success receipts required: at least one success among research
-    success_n = sum(1 for r in receipts if r.status == "success")
+    # Success receipts required: at least one *valid* success
+    success_n = sum(1 for r in valid_receipts if r.get("status") == "success")
     if success_n < 1:
-        errors.append("no successful research receipts")
+        errors.append("no successful valid research receipts")
 
     # Minimum shape: 4 contracts
     for name in (

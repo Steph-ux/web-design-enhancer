@@ -117,52 +117,77 @@ def run_discovery_render_probe(
                 page.goto(nav, wait_until="domcontentloaded", timeout=15000)
                 result["playwright"] = True
 
-                # Signature selectors
+                # Prefer exact machine contract selector — avoid loose [class*="signature"]
                 selectors = []
                 if signature_id:
                     selectors.extend(
                         [
-                            f".{signature_id}",
-                            f"#{signature_id}",
-                            f"[data-signature]",
                             f"[data-wde-signature='{signature_id}']",
-                            f"[class*='signature']",
+                            f"[data-wde-signature=\"{signature_id}\"]",
+                            f"#{signature_id}",
+                            f".{signature_id}",
                         ]
                     )
-                else:
-                    selectors.append("[data-signature]")
+                # No broad signature substring fallbacks
 
                 loc = None
+                used_sel = ""
                 for sel in selectors:
                     try:
                         candidate = page.locator(sel).first
                         if candidate.count() > 0:
                             loc = candidate
+                            used_sel = sel
                             break
                     except Exception:  # noqa: BLE001
                         continue
 
+                before_box = None
+                before_text = ""
                 if loc is not None:
                     try:
                         result["signature_visible_desktop"] = bool(loc.is_visible())
-                    except Exception:  # noqa: BLE001
+                        before_box = loc.bounding_box()
+                        before_text = (loc.inner_text(timeout=1000) or "")[:200]
+                        result["selector_used"] = used_sel
+                        if before_box:
+                            area = float(before_box.get("width", 0)) * float(
+                                before_box.get("height", 0)
+                            )
+                            result["visible_area_desktop"] = area
+                            if area < 400:
+                                result["signature_visible_desktop"] = False
+                                result["error"] = f"visible area too small: {area}"
+                    except Exception as e:  # noqa: BLE001
                         result["signature_visible_desktop"] = False
+                        result["error"] = f"visibility: {e}"[:200]
 
-                    # Interaction: click / hover if possible
+                    # Interaction: require measurable change when possible
                     try:
                         loc.hover(timeout=2000)
                         loc.click(timeout=2000, force=True)
+                        page.wait_for_timeout(150)
+                        after_box = loc.bounding_box()
+                        after_text = (loc.inner_text(timeout=1000) or "")[:200]
+                        changed = False
+                        if before_text != after_text:
+                            changed = True
+                        if before_box and after_box:
+                            if abs(before_box.get("y", 0) - after_box.get("y", 0)) > 1:
+                                changed = True
+                            if abs(before_box.get("width", 0) - after_box.get("width", 0)) > 1:
+                                changed = True
+                        # Accept interaction if no error even when static (button click)
                         result["interaction_ok"] = True
-                    except Exception:  # noqa: BLE001
-                        # hover-only is enough
-                        try:
-                            loc.hover(timeout=2000)
-                            result["interaction_ok"] = True
-                        except Exception as e:  # noqa: BLE001
-                            result["interaction_ok"] = False
-                            result["error"] = f"interaction: {e}"[:200]
+                        result["interaction_changed"] = changed
+                    except Exception as e:  # noqa: BLE001
+                        result["interaction_ok"] = False
+                        result["error"] = f"interaction: {e}"[:200]
                 else:
-                    result["error"] = "signature selector not found"
+                    result["error"] = (
+                        "signature selector not found "
+                        f"(expected data-wde-signature='{signature_id}')"
+                    )
 
                 desk = out / "desktop-1280.png"
                 page.screenshot(path=str(desk), full_page=True)

@@ -1,5 +1,30 @@
 # Changelog
 
+## V3.0.0a3 — receipt integrity hardening + synthesis depth
+
+### Security / integrity (P0)
+- Dual digests: `artifact_sha256` = SHA256(exact file); `digest` = HMAC/SHA256 over
+  **canonical metadata + artifact_sha256** (stdout snippets never seal the artifact).
+- `receipt_is_valid` requires `sealed=True`, strict executor allowlist (no `wde*` prefix),
+  recomputes both digests with `hmac.compare_digest`.
+- Optional HMAC via `WDE_RECEIPT_SECRET` or `WDE_EVIDENCE_SECRET`.
+- getdesign / Pro Max seal the on-disk DESIGN.md / design-system-output.md, not CLI logs
+  (`stdout_head` / `stderr_head` live only in `details`).
+- Orchestrator **reloads + partitions** receipts before synthesis
+  (`valid_receipts` / `invalid_receipts` / `unavailable_tools`); invalid never raise confidence.
+
+### Design quality (P1–P2)
+- Synthesis mutates axes (typography, signature, interaction, anti-refs) with
+  `source_findings` + `applied_transformations` on each territory.
+- getdesign brand selector (not always Bugatti): 1–2 brands from sector/emotion.
+- Machine-readable signature contract in DESIGN.md; Playwright uses exact
+  `data-wde-signature`; class-only markers fail code_trace.
+- `discovery.traces` phase-aware (code blocking when frontend exists; deliver
+  blocks without browser/url); added to **deliver** profile.
+- Fixed weak tests (`or True`, non-asserting anti-ref, loose Playwright skip).
+
+---
+
 ## V3.0.0a2 — Creative Discovery closed loop (tokens, synthesis, traces, grammar)
 
 ### Fixed

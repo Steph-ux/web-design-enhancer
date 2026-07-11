@@ -37,6 +37,9 @@ class Territory:
     archetype_hint: str = ""
     # Structured tokens — compiler source of truth for DESIGN.md
     tokens: DesignTokens = field(default_factory=lambda: DesignTokens.dark_instrument())
+    # Research consumption audit trail
+    source_findings: list[str] = field(default_factory=list)
+    applied_transformations: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
@@ -282,43 +285,155 @@ def generate_territories(
 
 
 def _apply_synthesis(territories: list[Territory], synthesis: Any) -> list[Territory]:
-    """Fold research findings into anti-references and signature notes."""
-    anti_extra: list[str] = []
+    """Fold research findings into generative axes (not just decorative text).
+
+    Each territory records ``source_findings`` digests and ``applied_transformations``
+    so research is auditable as a design input.
+    """
+    anti_extra: list[tuple[str, str]] = []  # (statement, digest)
     for f in getattr(synthesis, "anti_references", []) or []:
         val = getattr(f, "statement", None) or (f if isinstance(f, str) else str(f))
+        dig = getattr(f, "receipt_digest", "") or ""
         if val:
-            anti_extra.append(str(val)[:120])
-    principles: list[str] = []
+            anti_extra.append((str(val)[:120], str(dig)))
+
+    principles: list[tuple[str, str]] = []
     for f in getattr(synthesis, "visual_principles", []) or []:
         val = getattr(f, "statement", None) or (f if isinstance(f, str) else str(f))
+        dig = getattr(f, "receipt_digest", "") or ""
         if val:
-            principles.append(str(val)[:100])
+            principles.append((str(val)[:120], str(dig)))
+
+    type_opts: list[tuple[str, str]] = []
+    for f in getattr(synthesis, "typography_options", []) or []:
+        val = getattr(f, "statement", None) or str(f)
+        dig = getattr(f, "receipt_digest", "") or ""
+        if val:
+            type_opts.append((str(val)[:120], str(dig)))
+
+    cross: list[tuple[str, str]] = []
+    for f in getattr(synthesis, "cross_domain_moves", []) or []:
+        val = getattr(f, "statement", None) or str(f)
+        dig = getattr(f, "receipt_digest", "") or ""
+        if val:
+            cross.append((str(val)[:120], str(dig)))
+
+    interactions: list[tuple[str, str]] = []
+    for f in getattr(synthesis, "interaction_options", []) or []:
+        val = getattr(f, "statement", None) or str(f)
+        dig = getattr(f, "receipt_digest", "") or ""
+        if val:
+            interactions.append((str(val)[:120], str(dig)))
 
     out: list[Territory] = []
     for i, t in enumerate(territories):
         anti = list(t.anti_references)
-        for a in anti_extra[:3]:
+        sources: list[str] = list(t.source_findings)
+        transforms: list[dict[str, Any]] = list(t.applied_transformations)
+
+        for a, dig in anti_extra[:4]:
             if a not in anti:
                 anti.append(a)
+                if dig:
+                    sources.append(f"digest:{dig}")
+                transforms.append(
+                    {
+                        "finding": a,
+                        "transformation": "ban this pattern in contracts and code",
+                        "affected_axes": ["anti_references"],
+                    }
+                )
+
+        typography = t.typography
+        if type_opts:
+            stmt, dig = type_opts[i % len(type_opts)]
+            # Pull concrete type cue into typography axis
+            if "serif" in stmt.lower() and "serif" not in typography.lower():
+                typography = f"{typography}; research cue: serif display"
+            elif "mono" in stmt.lower() and "mono" not in typography.lower():
+                typography = f"{typography}; research cue: mono labels"
+            else:
+                typography = f"{typography}; research: {stmt[:60]}"
+            if dig:
+                sources.append(f"digest:{dig}")
+            transforms.append(
+                {
+                    "finding": stmt,
+                    "transformation": "typography axis absorbs research cue",
+                    "affected_axes": ["typography"],
+                }
+            )
+
+        structure = t.structure
+        signature = t.signature_move
+        if cross:
+            stmt, dig = cross[i % len(cross)]
+            # Cross-domain steal becomes signature enrichment (not a second metaphor)
+            signature = f"{signature} · steal: {stmt[:80]}"
+            if dig:
+                sources.append(f"digest:{dig}")
+            transforms.append(
+                {
+                    "finding": stmt,
+                    "transformation": "cross-domain move folded into signature",
+                    "affected_axes": ["signature", "structure"],
+                }
+            )
+
+        primary = t.primary_interaction
+        if interactions:
+            stmt, dig = interactions[i % len(interactions)]
+            primary = f"{primary}; research interaction: {stmt[:60]}"
+            if dig:
+                sources.append(f"digest:{dig}")
+            transforms.append(
+                {
+                    "finding": stmt,
+                    "transformation": "interaction axis updated from research",
+                    "affected_axes": ["primary_interaction"],
+                }
+            )
+
         hero = t.hero
-        if principles and i == 0:
-            hero = f"{hero} · research: {principles[0]}"
+        if principles:
+            stmt, dig = principles[i % len(principles)]
+            hero = f"{hero} · principle: {stmt[:80]}"
+            if dig:
+                sources.append(f"digest:{dig}")
+            transforms.append(
+                {
+                    "finding": stmt,
+                    "transformation": "hero framing cites visual principle",
+                    "affected_axes": ["hero", "image_treatment"],
+                }
+            )
+
+        # de-dupe sources preserve order
+        seen_s: set[str] = set()
+        uniq_sources: list[str] = []
+        for s in sources:
+            if s not in seen_s:
+                seen_s.add(s)
+                uniq_sources.append(s)
+
         out.append(
             Territory(
                 id=t.id,
                 name=t.name,
                 metaphor=t.metaphor,
-                structure=t.structure,
-                primary_interaction=t.primary_interaction,
-                typography=t.typography,
+                structure=structure,
+                primary_interaction=primary,
+                typography=typography,
                 image_treatment=t.image_treatment,
                 motion_level=t.motion_level,
                 palette_role=t.palette_role,
-                signature_move=t.signature_move,
-                anti_references=anti[:8],
+                signature_move=signature,
+                anti_references=anti[:10],
                 hero=hero,
                 archetype_hint=t.archetype_hint,
                 tokens=t.tokens,
+                source_findings=uniq_sources[:12],
+                applied_transformations=transforms[:12],
             )
         )
     return out

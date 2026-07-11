@@ -256,14 +256,19 @@ def run_code_trace(root: Path) -> TraceReport:
     anti = [str(a).lower() for a in (winner.get("anti_references") or [])]
 
     # Signature marker
-    has_marker = sig_id in blob_l or "data-signature" in blob_l or "wde-signature" in blob_l
-    if signature and len(signature) > 12:
-        has_marker = has_marker or signature[:24].lower() in blob_l
+    # Require machine-readable contract attribute (not a bare empty class)
+    exact_attr = f'data-wde-signature="{sig_id}"' in blob_l or f"data-wde-signature='{sig_id}'" in blob_l
+    class_marker = f'class="{sig_id}"' in blob_l or f"class='{sig_id}'" in blob_l or f" {sig_id}" in blob_l
+    has_marker = exact_attr or (class_marker and sig_id in blob_l)
     findings.append(
         TraceFinding(
             "code.signature_marker",
-            has_marker,
-            f"Signature marker `{sig_id}` or equivalent in code" if has_marker else f"Missing `{sig_id}` / data-signature in code",
+            exact_attr,
+            (
+                f"Machine selector data-wde-signature='{sig_id}' present"
+                if exact_attr
+                else f"Missing data-wde-signature='{sig_id}' (class-only is insufficient)"
+            ),
             "major",
         )
     )

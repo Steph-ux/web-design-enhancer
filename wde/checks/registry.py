@@ -61,6 +61,7 @@ class CheckRegistry:
                 "spacing.grid",
                 "style.uniqueness",
                 "design.diff",
+                "discovery.traces",
             ],
             "domains": ["domains.bundle"],
             "full": [

@@ -47,14 +47,6 @@ def test_code_trace_detects_signature_when_present(tmp_path: Path):
     sig = f"{winner_id.lower()}-signature"
     src = tmp_path / "src"
     src.mkdir()
-    (src / "index.html").write_text(
-        f'<!doctype html><html><head><meta name="viewport" content="width=device-width"></head>'
-        f'<body><div class="{sig}" data-signature="1">hello</div>'
-        f'<style>:root{{--bg:#0A0A0A;--accent:#C4A35A}} @media(max-width:600px){{body{{padding:8px}}}}</style>'
-        f"</body></html>",
-        encoding="utf-8",
-    )
-    # inject winner bg if light
     import json
 
     terr = json.loads((tmp_path / ".wde" / "research" / "territories.json").read_text(encoding="utf-8"))
@@ -63,7 +55,7 @@ def test_code_trace_detects_signature_when_present(tmp_path: Path):
     accent = (w.get("tokens") or {}).get("accent") or "#C4A35A"
     (src / "index.html").write_text(
         f'<!doctype html><html><head><meta name="viewport" content="width=device-width"></head>'
-        f'<body><div class="{sig}" data-signature="1">Book now</div>'
+        f'<body><div class="{sig}" data-wde-signature="{sig}">Book now</div>'
         f"<style>:root{{--bg:{bg};--accent:{accent}}} "
         f"@media(max-width:600px){{body{{padding:8px}}}}</style></body></html>",
         encoding="utf-8",
@@ -167,7 +159,7 @@ def test_playwright_render_probe_when_available(tmp_path: Path):
         f"""<!doctype html>
 <html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body>
-  <button class="{sig}" data-signature="1" style="padding:12px">Book</button>
+  <button class="{sig}" data-wde-signature="{sig}" style="padding:24px 48px;min-width:200px;min-height:48px">Book</button>
   <style>
     :root {{ --bg: {bg}; }}
     body {{ background: var(--bg); margin: 0; }}
@@ -178,15 +170,14 @@ def test_playwright_render_probe_when_available(tmp_path: Path):
         encoding="utf-8",
     )
     from wde.discovery.traces import run_render_trace
+    from wde.runners.browser_runner import run_discovery_render_probe
 
-    try:
-        report = run_render_trace(tmp_path, require_browser=True)
-    except Exception as e:  # noqa: BLE001
-        pytest.skip(f"playwright runtime unavailable: {e}")
-    if any(
-        f.check == "render.playwright_unavailable" and not f.ok for f in report.findings
-    ):
-        pytest.skip("chromium not available for playwright")
+    probe = run_discovery_render_probe(
+        root=tmp_path, target=str((src / "index.html").resolve()), signature_id=sig
+    )
+    if not probe.get("playwright"):
+        pytest.skip(probe.get("error") or "playwright/chromium unavailable")
+    report = run_render_trace(tmp_path, require_browser=True)
     assert report.ok, [f.to_dict() for f in report.findings if not f.ok]
     assert (tmp_path / ".wde" / "discovery" / "render" / "desktop-1280.png").is_file()
     assert (tmp_path / ".wde" / "discovery" / "render" / "mobile-375.png").is_file()

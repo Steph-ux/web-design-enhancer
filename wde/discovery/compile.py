@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -489,8 +490,23 @@ def compile_design_md(
 
 - **Owned move**: {winner.signature_move}
 - **Grep signature**: `{winner.id.lower()}-signature`
+- **Machine selector**: `[data-wde-signature='{winner.id.lower()}-signature']`
 - **Where visible**: hero + primary navigation beat
 - **Anti-spread**: do not dilute with a second metaphor
+
+### Signature contract (machine-readable)
+
+```json
+{{
+  "id": "{winner.id.lower()}-signature",
+  "selector": "[data-wde-signature='{winner.id.lower()}-signature']",
+  "expected_behavior": "state_or_content_changes_on_interaction",
+  "desktop": true,
+  "mobile": true,
+  "minimum_visible_area": 400,
+  "description": {json.dumps(winner.signature_move)}
+}}
+```
 
 ## 12. Intentional Tensions
 
