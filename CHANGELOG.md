@@ -1,5 +1,22 @@
 # Changelog
 
+## V3.0.0a4 — scaffold, external tokens, deliver strict
+
+### Added
+- **Post-discover scaffold**: `src/index.html` + `src/styles.css` from winner tokens with
+  mandatory `data-wde-signature` + click state (CLI `--no-scaffold` to skip).
+- **getdesign → palette**: `token_extract.py` blends accent/display font from
+  `getdesign-*.md` / Pro Max artifacts into winner `DesignTokens` before DESIGN.md.
+- **Happy path** in README; version `3.0.0a4`.
+- **deliver-check strict**: with discovery + frontend, requires `--url` / local_url;
+  `discovery.traces` failures block deliver; profile passed into check context.
+
+### CLI
+- `wde discover --no-scaffold`
+- discover prints research coverage + next steps (serve src → deliver-check --url)
+
+---
+
 ## V3.0.0a3 — receipt integrity hardening + synthesis depth
 
 ### Security / integrity (P0)

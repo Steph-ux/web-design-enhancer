@@ -5,7 +5,7 @@ Stateful, evidence-driven quality orchestrator for AI coding agents (V3) + battl
 
 > **The model proposes and implements. The orchestrator authorizes, verifies, and blocks.**
 
-**Version:** `3.0.0a1` · Tag: [`v3.0.0a1`](https://github.com/Steph-ux/web-design-enhancer/releases) · V2 freeze: `v2.2.0`
+**Version:** `3.0.0a4` · Discovery closed-loop · V2 freeze: `v2.2.0`
 
 ---
 
@@ -15,7 +15,7 @@ Stateful, evidence-driven quality orchestrator for AI coding agents (V3) + battl
 cd web-design-enhancer-pro
 pip install -e .          # installs the `wde` command
 wde --help
-wde --version             # → 3.0.0a1
+wde --version             # → 3.0.0a4
 ```
 
 | Form | Use when |
@@ -26,30 +26,47 @@ wde --version             # → 3.0.0a1
 
 There is no need for `python -m wde.cli.main`.
 
-### Quickstart
+### Happy path — vague idea → scaffold → deliver gate
 
 ```bash
-wde init --root <project>
-# Creative Discovery from a vague request (receipts + 3 territories + contracts)
-wde discover --root <project> --request "modern premium site for an agency"
-wde status --json --root <project>
-wde next --root <project>
+# 1) Init project control plane
+wde init --root ./my-site
 
-# contracts (follow next_action only)
-wde validate intent --root <project>
-wde validate research --root <project>
-wde validate experience --root <project>
-wde validate design --root <project>
-wde validate lock --root <project>
+# 2) Creative Discovery (research receipts + 3 territories + 4 contracts + src/ scaffold)
+wde discover --root ./my-site \
+  --request "modern premium site for an independent hotel brand agency"
+# → CREATIVE-BRIEF.md, EXPERIENCE-CONTRACT.md, DESIGN.md, STRUCTURAL-LOCK.md
+# → src/index.html + src/styles.css (winner tokens + data-wde-signature)
+# → .wde/research/* + .wde/discovery/traces.json
 
-# checks + delivery
-wde run static --root <project>
-wde deliver-check --root <project>
-wde review --emit-package --url http://localhost:5173 --root <project>
-# independent judge → audit-results/aesthetic-verdict.json  (never self for delivery)
-wde review --url http://localhost:5173 --root <project>
-wde report --root <project>
-wde benchmark --corpus    # never auto-delivers
+# 3) Serve the scaffold (any static server)
+cd my-site/src && python -m http.server 5173
+# other terminal:
+wde validate intent --root ./my-site
+wde validate research --root ./my-site
+wde validate design --root ./my-site
+
+# 4) Traces + mechanical gates against the live page
+wde run discovery --root ./my-site --url http://127.0.0.1:5173
+wde run static --root ./my-site
+wde deliver-check --root ./my-site --url http://127.0.0.1:5173
+# Without --url after discover+scaffold → deliver is BLOCKED (visual unverified)
+
+# 5) Independent aesthetic review (never self-authorize READY)
+wde review --emit-package --url http://127.0.0.1:5173 --root ./my-site
+wde report --root ./my-site
+```
+
+Offline CI (no getdesign network):
+
+```bash
+wde discover --root ./my-site --request "…" --skip-getdesign
+```
+
+Skip scaffold if you already have frontend:
+
+```bash
+wde discover --root ./my-site --request "…" --no-scaffold
 ```
 
 | Piece | Role |

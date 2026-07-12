@@ -18,13 +18,19 @@ from wde.core.project_context import ProjectContext
 from wde.core.state_machine import apply_transition
 
 
-def build_context(ctx: ProjectContext, *, url: str | None = None) -> dict[str, Any]:
+def build_context(
+    ctx: ProjectContext,
+    *,
+    url: str | None = None,
+    profile: str | None = None,
+) -> dict[str, Any]:
     project = ctx.load_project()
     state = ctx.load_state()
     return {
         "root": ctx.root,
         "project": project,
         "state": state,
+        "profile": profile or "",
         "source_paths": project.get("source_paths") or ["."],
         "local_url": url or project.get("local_url"),
         "url": url or project.get("local_url"),
@@ -39,11 +45,14 @@ def run_checks(
     *,
     url: str | None = None,
     record_evidence: bool = True,
+    profile: str | None = None,
 ) -> list[CheckResult]:
-    context = build_context(ctx, url=url)
+    context = build_context(ctx, url=url, profile=profile)
     state = ctx.refresh_invalidation()
     context["hashes"] = state.get("hashes") or {}
     context["capabilities"] = state.get("capabilities") or ctx.detect_capabilities()
+    if profile:
+        context["profile"] = profile
 
     results: list[CheckResult] = []
     source_hash = (state.get("hashes") or {}).get("SOURCE", "")
@@ -108,7 +117,7 @@ def run_profile(
 ) -> list[CheckResult]:
     reg = get_registry()
     checks = reg.profile(profile)
-    return run_checks(ctx, checks, url=url)
+    return run_checks(ctx, checks, url=url, profile=profile)
 
 
 def deliver_check(ctx: ProjectContext, *, url: str | None = None) -> tuple[bool, list[str], list[CheckResult]]:
@@ -126,6 +135,34 @@ def deliver_check(ctx: ProjectContext, *, url: str | None = None) -> tuple[bool,
     for r in results:
         if r.blocks_delivery:
             blockers.append(f"{r.check_id}: {r.summary}")
+        # Failed discovery.traces always block deliver when discovery was used
+        if r.check_id == "discovery.traces" and r.status == "failed":
+            blockers.append(f"{r.check_id}: {r.summary}")
+
+    # Strict browser gate when discovery territories exist
+    has_discovery = (ctx.root / ".wde" / "research" / "territories.json").is_file()
+    has_fe = any(
+        p.is_file()
+        for p in [
+            ctx.root / "src" / "index.html",
+            ctx.root / "index.html",
+        ]
+    ) or any(
+        p.suffix.lower() in {".html", ".css", ".jsx", ".tsx"}
+        for p in ctx.root.rglob("*")
+        if p.is_file() and ".wde" not in p.parts and "node_modules" not in p.parts
+        and "tests" not in p.parts
+    )
+    caps = state.get("capabilities") or ctx.detect_capabilities()
+    if has_discovery and has_fe:
+        if not url and not (ctx.load_project() or {}).get("local_url"):
+            blockers.append(
+                "deliver requires --url (or project.local_url) when discovery scaffold/frontend exists — visual unverified"
+            )
+        elif not (caps.get("browser") or url):
+            blockers.append(
+                "deliver visual gate: browser capability missing and no URL — cannot READY"
+            )
 
     # Authoritative hashes after run
     state["hashes"] = {**(state.get("hashes") or {}), **ctx.compute_hashes()}

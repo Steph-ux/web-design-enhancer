@@ -161,6 +161,7 @@ def cmd_discover(args: argparse.Namespace) -> int:
         request,
         force_init=bool(args.force_init),
         try_getdesign=not bool(args.skip_getdesign),
+        write_scaffold_files=not bool(getattr(args, "no_scaffold", False)),
     )
     if args.json:
         print(json.dumps(result.to_dict(), indent=2, ensure_ascii=False))
@@ -172,11 +173,15 @@ def cmd_discover(args: argparse.Namespace) -> int:
         print(f"territories: {len(result.territories)}")
         if result.selection:
             print(f"winner: {result.selection.get('winner_name')} ({result.selection.get('winner_id')})")
+        if result.coverage_report:
+            print("--- research coverage ---")
+            print(result.coverage_report)
         for name in result.contracts:
             print(f"  wrote {name}")
         for e in result.errors:
             print(f"  error: {e}", file=sys.stderr)
-        print("next: wde validate intent  (then wde validate research)")
+        print("next: serve src/  then  wde run discovery --url <url>")
+        print("      wde validate intent && wde validate research && wde deliver-check --url <url>")
     return 0 if result.ok else 1
 
 
@@ -377,12 +382,24 @@ def cmd_deliver_check(args: argparse.Namespace) -> int:
     else:
         print_results(results)
         if ok:
-            print("DELIVER-CHECK: mechanical evidence OK (visual/independent still required for READY_TO_DELIVER)")
+            print(
+                "DELIVER-CHECK: mechanical + discovery traces OK "
+                "(independent aesthetic review still required for READY_TO_DELIVER)"
+            )
             print(f"phase: {state.get('phase')}")
+            if not args.url:
+                print(
+                    "NOTE: without --url, visual browser probe was not fully exercised; "
+                    "prefer: wde deliver-check --url http://localhost:5173"
+                )
         else:
             print("DELIVER-CHECK: BLOCKED")
             for b in blockers:
                 print(f"  - {b}")
+            print(
+                "hint: after discover, serve src/ then "
+                "wde deliver-check --url http://127.0.0.1:PORT"
+            )
         print(f"report: {report_path}")
 
     return 0 if ok else 1
@@ -421,6 +438,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--skip-getdesign",
         action="store_true",
         help="Do not call npx getdesign (offline CI)",
+    )
+    s.add_argument(
+        "--no-scaffold",
+        action="store_true",
+        help="Do not write src/index.html + styles.css from winner tokens",
     )
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_discover)

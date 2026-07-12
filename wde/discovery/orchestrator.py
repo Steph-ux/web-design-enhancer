@@ -20,6 +20,8 @@ from wde.discovery.territories import (
     generate_territories,
     territories_are_structurally_divergent,
 )
+from wde.discovery.scaffold import write_scaffold
+from wde.discovery.token_extract import apply_external_tokens_to_winner
 from wde.discovery.traces import run_all_traces
 
 
@@ -48,6 +50,7 @@ def run_discovery(
     *,
     force_init: bool = False,
     try_getdesign: bool = True,
+    write_scaffold_files: bool = True,
 ) -> DiscoveryResult:
     """
     interpret → research receipts → synthesize → 3 territories → select → compile contracts.
@@ -145,6 +148,13 @@ def run_discovery(
     selection = select_territory(territories, interp, synthesis)
     winner = next(t for t in territories if t.id == selection.winner_id)
 
+    # ── Blend getdesign / Pro Max tokens into winner palette (P4) ─────────
+    winner, token_audit = apply_external_tokens_to_winner(
+        root, winner, valid_receipts=valid_receipts
+    )
+    # Reflect blended tokens on the territories list for persistence
+    territories = [winner if t.id == winner.id else t for t in territories]
+
     # Persist territories + selection
     terr_path = research_dir(root) / "territories.json"
     terr_path.write_text(
@@ -154,6 +164,7 @@ def run_discovery(
                 "territories": [t.to_dict() for t in territories],
                 "selection": selection.to_dict(),
                 "synthesis_confidence": synthesis.confidence,
+                "external_token_audit": token_audit,
             },
             indent=2,
             ensure_ascii=False,
@@ -164,6 +175,13 @@ def run_discovery(
 
     # ── Compile contracts from winner tokens ──────────────────────────────
     contracts = write_contracts(root, interp, winner, selection, receipt_paths)
+
+    # ── Scaffold minimal frontend with signature contract ─────────────────
+    scaffold_files: dict[str, str] = {}
+    if write_scaffold_files:
+        scaffold_files = write_scaffold(root, interp, winner, force=False)
+        for name, rel in scaffold_files.items():
+            contracts[name] = rel
 
     # Guard: light territory must not compile Dark-first global palette
     design_text = (root / "DESIGN.md").read_text(encoding="utf-8", errors="replace")
@@ -183,12 +201,15 @@ def run_discovery(
     graph = build_decision_graph(interp, synthesis, winner, selection, receipt_paths)
     graph_path = write_decision_graph(root, graph)
 
-    # ── P5 traces (contract always; code/render soft until implement) ─────
+    # ── P5 traces (after scaffold so code_trace can see signature) ───────
     traces_payload = run_all_traces(root, require_browser=False)
-    # contract_trace failure is blocking for discovery quality
     ct = (traces_payload.get("traces") or {}).get("contract_trace") or {}
+    code_t = (traces_payload.get("traces") or {}).get("code_trace") or {}
     if traces_payload.get("ok") is False and ct.get("ok") is False:
         errors.append("discovery.contract_trace failed — see .wde/discovery/traces.json")
+    # With scaffold written, code signature should pass
+    if scaffold_files and code_t.get("ok") is False:
+        errors.append("discovery.code_trace failed after scaffold — signature contract missing")
 
     # Success receipts required: at least one *valid* success
     success_n = sum(1 for r in valid_receipts if r.get("status") == "success")
@@ -225,6 +246,8 @@ def run_discovery(
         "territories": str(terr_path.relative_to(root)).replace("\\", "/"),
         "contracts": contracts,
         "winner_tokens": tok.to_dict(),
+        "external_token_audit": token_audit,
+        "scaffold": scaffold_files,
         "errors": errors,
         "completed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }

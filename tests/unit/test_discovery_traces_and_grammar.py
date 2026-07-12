@@ -30,7 +30,12 @@ def test_contract_trace_passes_after_discover(tmp_path: Path):
 
 
 def test_code_trace_soft_without_implementation(tmp_path: Path):
-    run_discovery(tmp_path, "saas api product landing", try_getdesign=False)
+    run_discovery(
+        tmp_path,
+        "saas api product landing",
+        try_getdesign=False,
+        write_scaffold_files=False,
+    )
     report = run_code_trace(tmp_path)
     assert report.ok
     assert any(f.check == "code.absent" for f in report.findings)
@@ -41,12 +46,13 @@ def test_code_trace_detects_signature_when_present(tmp_path: Path):
         tmp_path,
         "boutique hotel brand site",
         try_getdesign=False,
+        write_scaffold_files=False,
     )
     assert r.ok
     winner_id = r.selection["winner_id"]
     sig = f"{winner_id.lower()}-signature"
     src = tmp_path / "src"
-    src.mkdir()
+    src.mkdir(parents=True, exist_ok=True)
     import json
 
     terr = json.loads((tmp_path / ".wde" / "research" / "territories.json").read_text(encoding="utf-8"))
@@ -144,12 +150,14 @@ def test_playwright_render_probe_when_available(tmp_path: Path):
     except ImportError:
         pytest.skip("playwright not installed")
 
-    r = run_discovery(tmp_path, "boutique hotel brand site", try_getdesign=False)
+    r = run_discovery(
+        tmp_path, "boutique hotel brand site", try_getdesign=False, write_scaffold_files=False
+    )
     assert r.ok
     winner_id = r.selection["winner_id"]
     sig = f"{winner_id.lower()}-signature"
     src = tmp_path / "src"
-    src.mkdir()
+    src.mkdir(parents=True, exist_ok=True)
     import json
 
     terr = json.loads((tmp_path / ".wde" / "research" / "territories.json").read_text(encoding="utf-8"))
